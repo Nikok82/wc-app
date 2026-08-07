@@ -1,0 +1,56 @@
+# ==== Laravel default ====
+*.log
+.DS_Store
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+/.fleet
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+Homestead.json
+Homestead.yaml
+Thumbs.db
+
+# ==== WC App — esclusioni pubblicazione ====
+# Dump e SQL: il DB si importa a parte
+*.sql
+# Audio non servito (~100 MB)
+/resources/images/hymnes/
+# Cartelle di lavoro / scarti / data-entry
+/+garbage/
+/backup/
+/hfk_pagine/
+/hfk_pagine_2/
+/hfk_pagine.zip
+/hfk_pagine_2.zip
+/import_2026/
+/wiki2026/
+# Script e batch locali (solo root)
+/*.ps1
+/*.bat
+# Note, screenshot, registrazioni, workspace (solo root)
+/*.png
+/*.jpg
+/*.jpeg
+/*.mp4
+/*.xlsx
+/*.txt
+/CLAUDE.md
+/mia-app.code-workspace
+# Documenti di stato lavori
+/stato lavori/
+/stato lavori.md
+/report-*.md

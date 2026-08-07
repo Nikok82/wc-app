@@ -1,0 +1,13 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "WCID": "IRL",
+                "COUNTRY": "Ireland"
+            },
+            "geometry": null
+        }
+    ]
+}

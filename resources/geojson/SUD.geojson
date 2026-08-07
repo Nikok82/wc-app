@@ -1,0 +1,13 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "WCID": "SUD",
+                "COUNTRY": "Sudan"
+            },
+            "geometry": null
+        }
+    ]
+}
