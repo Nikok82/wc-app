@@ -99,25 +99,8 @@
         </div>
 
         <div class="menu">
-            <div class="gruppo">
-                <label for="sel-squadre">Squadre</label>
-                <select id="sel-squadre" onchange="if(this.value)location.href=this.value">
-                    <option value="">— Scegli una squadra ({{ $squadre->count() }}) —</option>
-                    @foreach ($squadre as $s)
-                        <option value="{{ route('squadra.show', $s->team_code) }}">{{ $s->team_name }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="gruppo">
-                <label for="sel-tornei">Tornei</label>
-                <select id="sel-tornei" onchange="if(this.value)location.href=this.value">
-                    <option value="">— Scegli un torneo ({{ $tornei->count() }}) —</option>
-                    @foreach ($tornei as $t)
-                        <option value="{{ route('torneo.show', $t->tournament_id) }}">{{ $t->year }} — {{ $t->host_country }}</option>
-                    @endforeach
-                </select>
-            </div>
+            {{-- Dropdown Squadre/Tornei rimossi (08/08): la navigazione resta
+                 nel drawer del menu (hamburger) e nei box "Scopri" qui sotto. --}}
 
             {{-- Box casuali (03/08): squadra e torneo a sorte, uno sopra
                  l'altro sopra i link; il bottone ri-estrae via fetch. --}}

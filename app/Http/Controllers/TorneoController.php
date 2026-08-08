@@ -249,4 +249,20 @@ class TorneoController extends Controller
             'marc'         => $partite->marcatori($tournamentId),
         ]);
     }
+
+    /**
+     * Tab Maglie (frammento HTML via fetch): le maglie di tutte le squadre del
+     * torneo, a blocchi per squadra (ordine alfabetico), solo immagini.
+     */
+    public function maglie(string $tournamentId, \App\Services\MaglieService $maglie)
+    {
+        $tournamentId = strtoupper($tournamentId);
+        $torneo = $this->svc->torneo($tournamentId);
+        abort_if(! $torneo, 404);
+
+        return view('torneo.partials.maglie', [
+            'tournamentId' => $tournamentId,
+            'blocchi'      => $maglie->perTorneo($tournamentId),
+        ]);
+    }
 }

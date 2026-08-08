@@ -51,6 +51,8 @@ Route::get('/squadra/{code}/giocatori', [SquadraController::class, 'giocatori'])
 
 Route::get('/squadra/{code}/managers', [SquadraController::class, 'managers'])->name('squadra.managers');
 
+Route::get('/squadra/{code}/maglie', [SquadraController::class, 'maglie'])->name('squadra.maglie');
+
 /* ---------------- Giocatori / Allenatori / Arbitri ---------------- */
 
 // Elenchi con ricerca, paginazione (20/50/100) e popup scheda
@@ -86,6 +88,7 @@ Route::get('/torneo/{tournamentId}', [TorneoController::class, 'show'])->name('t
 Route::get('/torneo/{tournamentId}/info', [TorneoController::class, 'info'])->name('torneo.info');
 Route::get('/torneo/{tournamentId}/partite', [TorneoController::class, 'partite'])->name('torneo.partite');
 Route::get('/torneo/{tournamentId}/squadre', [TorneoController::class, 'squadre'])->name('torneo.squadre');
+Route::get('/torneo/{tournamentId}/maglie', [TorneoController::class, 'maglie'])->name('torneo.maglie');
 Route::get('/torneo/{tournamentId}/record', [TorneoController::class, 'record'])->name('torneo.record');
 Route::get('/torneo/{tournamentId}/marcatori', [TorneoController::class, 'marcatori'])->name('torneo.marcatori');
 Route::get('/torneo/{tournamentId}/classifica', [TorneoController::class, 'classifica'])->name('torneo.classifica');

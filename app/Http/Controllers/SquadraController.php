@@ -290,4 +290,21 @@ class SquadraController extends Controller
 
         return view('squadra.partials.record', compact('record', 'code'));
     }
+
+    /**
+     * Contenuto del tab "maglie": le maglie della nazionale a blocchi per
+     * torneo (dal piu' vecchio al piu' recente), solo immagini.
+     */
+    public function maglie(string $code, \App\Services\MaglieService $maglie)
+    {
+        $code = strtoupper($code);
+
+        $team = \App\Models\Team::where('team_code', $code)->first();
+        abort_if(! $team, 404);
+
+        return view('squadra.partials.maglie', [
+            'code'    => $code,
+            'blocchi' => $maglie->perSquadra($code),
+        ]);
+    }
 }

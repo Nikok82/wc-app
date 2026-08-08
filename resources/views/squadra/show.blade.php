@@ -10,6 +10,7 @@
         <button class="tab-btn" data-section="partite">Partite</button>        <button class="tab-btn" data-section="presenze">Presenze</button>
         <button class="tab-btn" data-section="giocatori">Giocatori</button>
         <button class="tab-btn" data-section="managers">Managers</button>
+        <button class="tab-btn" data-section="maglie">Maglie</button>
         <button class="tab-btn" data-section="record">Record</button>
     </div>
 

@@ -116,4 +116,90 @@ class MaglieService
 
         return $kit;
     }
+
+    /**
+     * Tutte le squadre di un torneo con le rispettive maglie distinte: una
+     * sola query sul torneo, raggruppata per squadra. Squadre in ordine
+     * ALFABETICO; dentro ogni blocco le maglie sono ordinate per uso.
+     *
+     * @return array<int, array{code:string, name:string, flag:?string,
+     *   url:?string, kits:array}>
+     */
+    public function perTorneo(string $tid): array
+    {
+        $anno = $this->wc->anno($tid);
+
+        $partite = DB::table('awc_matches')
+            ->where('tournament_id', $tid)
+            ->orderBy('match_date')->orderBy('match_time')->orderBy('key_id')
+            ->get();
+
+        // Squadre presenti nelle partite (code => nome visualizzato)
+        $nomi = [];
+        foreach ($partite as $p) {
+            if (! empty($p->home_team_code)) {
+                $nomi[$p->home_team_code] = $p->home_team_name;
+            }
+            if (! empty($p->away_team_code)) {
+                $nomi[$p->away_team_code] = $p->away_team_name;
+            }
+        }
+
+        $out = [];
+        foreach ($nomi as $code => $nome) {
+            $delSquadra = $partite->filter(
+                fn ($p) => $p->home_team_code === $code || $p->away_team_code === $code
+            );
+            $kits = $this->raggruppa($delSquadra, $code, $anno);
+            if (empty($kits)) {
+                continue;   // squadra senza maglie note (es. KO 2026 non assegnati)
+            }
+            $out[] = [
+                'code' => $code,
+                'name' => $nome ?: $code,
+                'flag' => $this->wc->bandieraUrl($code, $anno),
+                'url'  => $anno ? route('squadra_anno.show', ['code' => $code, 'year' => $anno]) : null,
+                'kits' => $kits,
+            ];
+        }
+
+        usort($out, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        return $out;
+    }
+
+    /**
+     * Tutti i tornei a cui una nazionale ha partecipato, con le maglie
+     * distinte per ciascuno. Tornei dal piu' VECCHIO al piu' recente; dentro
+     * ogni blocco le maglie sono ordinate per uso.
+     *
+     * @return array<int, array{tid:string, anno:?int, url:?string, kits:array}>
+     */
+    public function perSquadra(string $code): array
+    {
+        $code = strtoupper($code);
+
+        $tids = DB::table('awc_qualified_teams')
+            ->where('team_code', $code)
+            ->distinct()->pluck('tournament_id')
+            ->sortBy(fn ($t) => (int) substr((string) $t, 3))
+            ->values();
+
+        $out = [];
+        foreach ($tids as $tid) {
+            $kits = $this->perSquadraTorneo($code, $tid);
+            if (empty($kits)) {
+                continue;
+            }
+            $anno = $this->wc->anno($tid);
+            $out[] = [
+                'tid'  => $tid,
+                'anno' => $anno,
+                'url'  => $anno ? route('squadra_anno.show', ['code' => $code, 'year' => $anno]) : null,
+                'kits' => $kits,
+            ];
+        }
+
+        return $out;
+    }
 }
