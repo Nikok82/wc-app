@@ -149,7 +149,29 @@ class SquadraController extends Controller
             ->sortBy('tournament_id')
             ->values();
 
-        return view('squadra.partials.presenze', compact('presenze', 'code'));
+        // Serie del piazzamento (class_mond) per il grafico a linea + tutti gli
+        // anni-edizione per l'asse X (i buchi = anni da non qualificata).
+        $teamId = \App\Models\QualifiedTeam::where('team_code', $code)->value('team_id')
+               ?? \App\Models\NotQualifiedTeam::where('team_code', $code)->value('team_id');
+        $serie = [];
+        if ($teamId) {
+            foreach (\Illuminate\Support\Facades\DB::table('awc_results_for_year')
+                        ->where('team_id', $teamId)->get() as $r) {
+                $anno = $wc->anno($r->tournament_id);
+                if ($anno && $r->class_mond !== null) {
+                    $pos = (int) $r->class_mond;
+                    $serie[$anno] = [
+                        'pos'   => $pos,
+                        'medal' => ($pos >= 1 && $pos <= 3) ? $pos : null,
+                        'res'   => $r->result_mond,
+                    ];
+                }
+            }
+        }
+        $anniEdizioni = \Illuminate\Support\Facades\DB::table('awc_tournaments')
+            ->distinct()->orderBy('year')->pluck('year')->map(fn ($y) => (int) $y)->all();
+
+        return view('squadra.partials.presenze', compact('presenze', 'code', 'serie', 'anniEdizioni'));
     }
 
     /**
@@ -339,7 +361,20 @@ class SquadraController extends Controller
             'perc_sconfitte' => $perc($sconfitte),
         ];
 
-        return view('squadra.partials.risultati', compact('record', 'code'));
+        // V/N/P per le 3 torte: totale, prime fasi (gironi) e altre fasi (KO),
+        // dalle colonne group_stage / knockout_stage di awc_team_appearances.
+        $vnp = fn ($coll) => [
+            'v' => $coll->where('win', 1)->count(),
+            'n' => $coll->where('draw', 1)->count(),
+            'p' => $coll->where('lose', 1)->count(),
+        ];
+        $torte = [
+            'totale' => $vnp($partite),
+            'prime'  => $vnp($partite->where('group_stage', 1)),
+            'altre'  => $vnp($partite->where('knockout_stage', 1)),
+        ];
+
+        return view('squadra.partials.risultati', compact('record', 'code', 'torte'));
     }
 
     /**

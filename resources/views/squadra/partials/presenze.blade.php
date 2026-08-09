@@ -1,6 +1,13 @@
 @if ($presenze->isEmpty())
     <p>Nessuna partecipazione trovata per questa squadra.</p>
 @else
+    @if (! empty($serie))
+        <div class="presenze-linea">
+            <div class="pl-tit">Piazzamento per Mondiale</div>
+            {!! \App\Support\Charts::lineChart($serie, $anniEdizioni) !!}
+        </div>
+    @endif
+
     <div class="presenze">
         @foreach ($presenze as $pt)
             @php $cliccabile = $pt['qualificata'] && ! empty($pt['url']); @endphp
@@ -80,5 +87,16 @@
             .piazzamento { width:100%; text-align:left; padding-left:46px; }
             .match-count { width:auto; }
         }
+
+        /* Grafico a linea del piazzamento (class_mond) — SVG statico da Charts. */
+        .presenze-linea { margin:2px 0 18px; }
+        .presenze-linea .pl-tit { font-size:12px; font-weight:600; color:var(--muted);
+                                  text-transform:uppercase; letter-spacing:.5px; margin:0 0 4px 2px; }
+        .presenze-linea .wc-line { width:100%; height:auto; display:block; }
+        .wc-line-grid { stroke:var(--line); stroke-width:1; }
+        .wc-line-axis { font-size:11px; fill:var(--muted); }
+        .wc-line-year { font-size:10px; fill:var(--muted); }
+        .wc-line-pos  { font-size:10px; font-weight:700; fill:var(--ink); }
+        .wc-line-seg  { stroke:#1b9e57; stroke-width:2.5; fill:none; stroke-linecap:round; }
     </style>
 @endif
