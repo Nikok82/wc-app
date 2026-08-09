@@ -45,7 +45,7 @@ Route::get('/squadra/{code}/partite', [SquadraController::class, 'partite'])->na
 
 Route::get('/squadra/{code}/presenze', [SquadraController::class, 'presenze'])->name('squadra.presenze');
 
-Route::get('/squadra/{code}/record', [SquadraController::class, 'record'])->name('squadra.record');
+Route::get('/squadra/{code}/risultati', [SquadraController::class, 'risultati'])->name('squadra.risultati');
 
 Route::get('/squadra/{code}/giocatori', [SquadraController::class, 'giocatori'])->name('squadra.giocatori');
 

@@ -32,9 +32,30 @@ class SquadraController extends Controller
             ->first();
 
         // Bandiera più recente per il banner (stile banner torneo)
-        $flag = app(\App\Services\WcService::class)->bandieraUrl($code, null);
+        $wc   = app(\App\Services\WcService::class);
+        $flag = $wc->bandieraUrl($code, null);
 
-        return view('squadra.show', compact('team', 'geo', 'titolo', 'prev', 'next', 'code', 'flag'));
+        // F6 — prev/next con la BANDIERA della nazionale invece del nome (il
+        // nome resta in title/alt). Le stesse bandiere popolano anche gli slot
+        // contestuali della barra bottoni mobile, prima vuoti in /squadra.
+        $prevFlag = $prev ? $wc->bandieraUrl($prev->team_code, null) : null;
+        $nextFlag = $next ? $wc->bandieraUrl($next->team_code, null) : null;
+
+        $barraPrev = $prev ? [
+            'url'   => route('squadra.show', $prev->team_code),
+            'img'   => $prevFlag,
+            'label' => $prev->team_name,
+        ] : null;
+        $barraNext = $next ? [
+            'url'   => route('squadra.show', $next->team_code),
+            'img'   => $nextFlag,
+            'label' => $next->team_name,
+        ] : null;
+
+        return view('squadra.show', compact(
+            'team', 'geo', 'titolo', 'prev', 'next', 'code', 'flag',
+            'prevFlag', 'nextFlag', 'barraPrev', 'barraNext'
+        ));
     }
 
     /**
@@ -70,30 +91,59 @@ class SquadraController extends Controller
             ->get();
 
         return view('squadra.partials.partite', compact('partite', 'code'));
-    }public function presenze(string $code)
+    }
+
+    public function presenze(string $code)
     {
         $code = strtoupper($code);
 
-        // Mappa nome squadra -> codice, per ricostruire i link interni
+        $wc = app(\App\Services\WcService::class);
+
+        // Mappa nome squadra -> codice, per ricostruire i link interni dell'esito
         $mappa = \App\Models\Team::pluck('team_code', 'team_name')->all();
 
+        // Host di ogni torneo (una query). host_country risolve la bandiera
+        // d'epoca anche per i co-ospitati: "Corea del Sud e Giappone" -> CSG
+        // (2002), "United" -> UTD (2026).
+        $hostMap = \Illuminate\Support\Facades\DB::table('awc_tournaments')
+            ->pluck('host_country', 'tournament_id')->all();
+
+        $host = function ($tid) use ($wc, $hostMap) {
+            $h = $hostMap[$tid] ?? null;
+            return [
+                'host'      => $h,
+                'host_flag' => $h ? $wc->bandieraUrl($h, $tid) : null,
+                'anno'      => $wc->anno($tid),
+            ];
+        };
+
         $qualificate = \App\Models\QualifiedTeam::where('team_code', $code)->get()
-            ->map(fn ($q) => [
-                'tournament_id'   => $q->tournament_id,
-                'tournament_name' => $q->tournament_name,
-                'qualificata'     => true,
-                'count_matches'   => $q->count_matches,
-                'esito'           => $this->risolviLinkSquadra($q->performance, $mappa),
-            ]);
+            ->map(function ($q) use ($mappa, $host, $code, $wc) {
+                $anno = $wc->anno($q->tournament_id);
+                return $host($q->tournament_id) + [
+                    'tournament_id'   => $q->tournament_id,
+                    'tournament_name' => $q->tournament_name,
+                    'qualificata'     => true,
+                    'count_matches'   => $q->count_matches,
+                    'esito'           => $this->risolviLinkSquadra($q->performance, $mappa),
+                    // Riga cliccabile verso la scheda squadra-anno (ha giocato).
+                    'url'             => $anno
+                        ? route('squadra_anno.show', ['code' => $code, 'year' => $anno])
+                        : null,
+                ];
+            });
 
         $non_qualificate = \App\Models\NotQualifiedTeam::where('team_code', $code)->get()
-            ->map(fn ($n) => [
-                'tournament_id'   => $n->tournament_id,
-                'tournament_name' => $n->tournament_name,
-                'qualificata'     => false,
-                'count_matches'   => null,
-                'esito'           => $this->risolviLinkSquadra($n->result, $mappa),
-            ]);
+            ->map(function ($n) use ($mappa, $host) {
+                return $host($n->tournament_id) + [
+                    'tournament_id'   => $n->tournament_id,
+                    'tournament_name' => $n->tournament_name,
+                    'qualificata'     => false,
+                    'count_matches'   => null,
+                    'esito'           => $this->risolviLinkSquadra($n->result, $mappa),
+                    'url'             => null,   // niente scheda anno se non qualificata
+                ];
+            });
 
         $presenze = $qualificate->concat($non_qualificate)
             ->sortBy('tournament_id')
@@ -258,10 +308,11 @@ class SquadraController extends Controller
     }
 
     /**
-     * Contenuto del tab "record": numeri aggregati della squadra ai Mondiali,
-     * calcolati al volo da awc_team_appearances.
+     * Contenuto del tab "risultati" (ex "record"): numeri aggregati V/N/P della
+     * squadra ai Mondiali, calcolati al volo da awc_team_appearances. Le 3 torte
+     * 3D arriveranno in Fase B; la tab "Record" dettagliata in Fase D.
      */
-    public function record(string $code)
+    public function risultati(string $code)
     {
         $code = strtoupper($code);
 
@@ -288,7 +339,7 @@ class SquadraController extends Controller
             'perc_sconfitte' => $perc($sconfitte),
         ];
 
-        return view('squadra.partials.record', compact('record', 'code'));
+        return view('squadra.partials.risultati', compact('record', 'code'));
     }
 
     /**

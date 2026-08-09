@@ -263,8 +263,9 @@ class TorneoService
     /* ----------------------------------------------------------------- */
 
     /**
-     * Torneo adiacente. Solo anni pari; il "successivo" esclude il 2026
-     * (come nel vecchio tema). Ritorna [year, tournament_id, url, manifest] o null.
+     * Torneo adiacente. Solo anni pari. Ritorna [year, tournament_id, url,
+     * manifest] o null. (Esclusione del 2026 rimossa: dal 2022 ora compare
+     * il Mondiale successivo 2026.)
      */
     public function adiacente(int $anno, string $direzione): ?array
     {
@@ -274,7 +275,6 @@ class TorneoService
             $t = $q->where('year', '<', $anno)->orderByDesc('year')->first();
         } else {
             $t = $q->where('year', '>', $anno)
-                ->where('year', '!=', 2026)
                 ->orderBy('year')
                 ->first();
         }
