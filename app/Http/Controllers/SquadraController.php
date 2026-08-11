@@ -242,8 +242,9 @@ class SquadraController extends Controller
             ->whereIn('id', $clubIds)->get()->keyBy('id');
 
         $oggi = now();
+        $wc   = app(\App\Services\WcService::class);
 
-        $giocatori = $rows->groupBy('player_id')->map(function ($conv, $pid) use ($players, $pg, $gol, $clubs, $oggi) {
+        $giocatori = $rows->groupBy('player_id')->map(function ($conv, $pid) use ($players, $pg, $gol, $clubs, $oggi, $wc) {
             $p     = $players[$pid] ?? null;
             $birth = $p?->birth_date;
 
@@ -268,7 +269,7 @@ class SquadraController extends Controller
             // Club distinti (dedup per id club; ignora righe senza club)
             $clubList = $conv->pluck('team_past_id')->filter()->unique()
                 ->map(fn ($id) => $clubs[$id] ?? null)->filter()
-                ->map(fn ($c) => ['nome' => $c->club_name, 'logo' => $c->logo ?: null])
+                ->map(fn ($c) => ['nome' => $c->club_name, 'logo' => $wc->logoClubUrl($c->logo)])
                 ->values();
 
             return [

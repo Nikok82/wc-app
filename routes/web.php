@@ -102,7 +102,7 @@ Route::get('/classifica', [\App\Http\Controllers\ClassificaController::class, 'i
 
 // Immagini in resources/images (bandiere, icone e manifesti tornei) in sola lettura
 Route::get('/img/{tipo}/{file}', [ImmagineController::class, 'show'])
-    ->where('tipo', 'flags|icons|tornei|site_logos')
+    ->where('tipo', 'flags|icons|tornei|site_logos|clubs')
     ->name('img');
 
 // Maglie per partita: resources/images/kits/{anno}/{file}.gif (05/08)

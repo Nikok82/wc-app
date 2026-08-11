@@ -99,6 +99,28 @@ class WcService
         return $file ? route('img', ['tipo' => 'flags', 'file' => $file.'.png']) : null;
     }
 
+    /**
+     * URL pubblico dello stemma di un club.
+     *
+     * `awc_clubs.logo` sta migrando da URL esterno completo (hotlink a
+     * cdn.soccerwiki.org) a solo nome file servito da /img/clubs/{file},
+     * come gia' avviene per le maglie. Finche' la migrazione non e'
+     * completa la colonna puo' contenere entrambe le forme, quindi qui
+     * si riconosce il caso e si costruisce l'URL giusto.
+     */
+    public function logoClubUrl(?string $logo): ?string
+    {
+        $logo = trim((string) $logo);
+        if ($logo === '') {
+            return null;
+        }
+        if (str_starts_with($logo, 'http://') || str_starts_with($logo, 'https://')) {
+            return $logo;
+        }
+
+        return route('img', ['tipo' => 'clubs', 'file' => $logo]);
+    }
+
     /* ----------------------------------------------------------------- */
     /*  Squadre di un torneo (awc_squads)                                 */
     /* ----------------------------------------------------------------- */

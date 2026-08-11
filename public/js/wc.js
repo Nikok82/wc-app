@@ -568,7 +568,11 @@
                         }).addTo(map);
                         if (div.dataset.nome) layer.bindTooltip(div.dataset.nome, { sticky: true });
                         var b = layer.getBounds();
-                        if (b && b.isValid()) map.fitBounds(b, { padding: [14, 14] });
+                        // maxZoom: senza tetto i paesi piccoli arrivavano al
+                        // livello 8 (massimo della mappa) e risultavano
+                        // ingranditi oltre il leggibile. 5 e' il compromesso
+                        // che tiene leggibili sia Curacao sia la Russia.
+                        if (b && b.isValid()) map.fitBounds(b, { padding: [14, 14], maxZoom: 5 });
                     })
                     .catch(function () { div.style.display = 'none'; });
             }).catch(function () { erroreMappa(div); });

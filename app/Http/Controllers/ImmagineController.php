@@ -11,7 +11,7 @@ class ImmagineController extends Controller
 {
     public function show(string $tipo, string $file)
     {
-        abort_unless(in_array($tipo, ['flags', 'icons', 'tornei', 'site_logos'], true), 404);
+        abort_unless(in_array($tipo, ['flags', 'icons', 'tornei', 'site_logos', 'clubs'], true), 404);
         abort_unless((bool) preg_match('/^[A-Za-z0-9._ -]+\.(png|svg|jpg|jpeg|webp)$/', $file), 404);
         abort_if(str_contains($file, '..'), 404);
 

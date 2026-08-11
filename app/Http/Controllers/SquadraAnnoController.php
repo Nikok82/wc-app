@@ -167,7 +167,7 @@ class SquadraAnnoController extends Controller
                 'pg'         => (int) ($r->player_id ? ($pg[$r->player_id] ?? 0) : 0),
                 'gol'        => (int) ($r->player_id ? ($gol[$r->player_id] ?? 0) : 0),
                 'club'       => $r->team_past ?: null,
-                'club_logo'  => $club->logo ?? null,
+                'club_logo'  => $this->wc->logoClubUrl($club->logo ?? null),
                 'club_stato' => $club->stato ?? null,
             ];
         });
