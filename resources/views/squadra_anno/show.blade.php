@@ -5,12 +5,12 @@
 @section('content')
     @include('partials.banner-squadra', ['flag' => $flag, 'titolo' => $titolo])
 
-    <div class="tabs">
-        <button class="tab-btn active" data-section="info">Info</button>
-        <button class="tab-btn" data-section="partite">Partite</button>
-        <button class="tab-btn" data-section="convocati">Convocati</button>
-        <button class="tab-btn" data-section="maglie">Maglie</button>
-        <button class="tab-btn" data-section="record">Record</button>
+    <div class="tabs tabs-icone">
+        <button class="tab-btn active" data-section="info"      title="Info"      aria-label="Info">{!! \App\Support\Icons::svg('info') !!}</button>
+        <button class="tab-btn"        data-section="partite"   title="Partite"   aria-label="Partite">{!! \App\Support\Icons::svg('scoreboard') !!}</button>
+        <button class="tab-btn"        data-section="convocati" title="Convocati" aria-label="Convocati">{!! \App\Support\Icons::svg('team') !!}</button>
+        <button class="tab-btn"        data-section="maglie"    title="Maglie"    aria-label="Maglie">@include('partials.icona-maglia')</button>
+        <button class="tab-btn"        data-section="record"    title="Record"    aria-label="Record">{!! \App\Support\Icons::svg('trophy-2') !!}</button>
     </div>
 
     <div id="tab-content" class="luce-bordo">Caricamento…</div>

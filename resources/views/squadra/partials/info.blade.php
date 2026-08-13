@@ -19,10 +19,13 @@
             ['giapponese', 'wiki_jp', 'JPN'],
         ];
     @endphp
-    <div class="lingue-grid">
+    <div class="lingue-riga">
+        @php $primo = true; @endphp
         @foreach ($lingue as [$col, $wikiCol, $flagCode])
             @if (!empty($geo->$col))
-                <div class="lingua">
+                @unless ($primo)<span class="sep" aria-hidden="true">•</span>@endunless
+                @php $primo = false; @endphp
+                <span class="lingua">
                     @if ($f = $wc->bandieraUrl($flagCode, null))
                         <img src="{{ $f }}" alt="" onerror="this.style.display='none'">
                     @endif
@@ -31,24 +34,28 @@
                         <a class="wbtn" href="{{ $geo->$wikiCol }}" target="_blank" rel="noopener"
                            title="Wikipedia ({{ $col }})">W</a>
                     @endif
-                </div>
+                </span>
             @endif
         @endforeach
     </div>
     <style>
-        .lingue-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin:2px 0 20px;}
-        .lingua{display:flex;align-items:center;gap:8px;background:#f4f6f5;
-            border-radius:6px;padding:5px 8px;min-height:30px;}
-        .lingua img{width:22px;height:auto;border-radius:2px;flex:none;
+        /* Nomi su un'unica riga che va a capo al bisogno. Il gruppo
+           bandiera+nome+W non si spezza mai: e' un solo inline-flex con
+           white-space:nowrap, quindi il ritorno a capo puo' avvenire solo
+           in corrispondenza dei separatori. */
+        .lingue-riga{margin:2px 0 20px;line-height:2.1;}
+        .lingue-riga .lingua{display:inline-flex;align-items:center;gap:6px;
+            white-space:nowrap;vertical-align:middle;}
+        .lingue-riga .sep{color:var(--muted);margin:0 9px;vertical-align:middle;}
+        .lingue-riga img{width:22px;height:auto;border-radius:2px;flex:none;
             box-shadow:0 1px 2px rgba(0,0,0,.25);}
-        .lingua .nome{flex:1;font-weight:600;font-size:13px;overflow:hidden;
-            text-overflow:ellipsis;white-space:nowrap;}
-        .lingua .wbtn{flex:none;width:22px;height:22px;display:flex;align-items:center;
-            justify-content:center;background:#fff;border:1px solid var(--line);
-            border-radius:4px;font-weight:800;font-size:12px;font-family:Georgia,serif;
-            color:var(--ink);text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,.12);}
-        .lingua .wbtn:hover{background:#eee;text-decoration:none;}
-        @media (max-width:340px){ .lingue-grid{grid-template-columns:1fr;} }
+        .lingue-riga .nome{font-weight:600;font-size:13px;}
+        .lingue-riga .wbtn{flex:none;width:20px;height:20px;display:inline-flex;
+            align-items:center;justify-content:center;background:#fff;
+            border:1px solid var(--line);border-radius:4px;font-weight:800;
+            font-size:11px;font-family:Georgia,serif;color:var(--ink);
+            text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,.12);}
+        .lingue-riga .wbtn:hover{background:#eee;text-decoration:none;}
     </style>
 @endif
 

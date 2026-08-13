@@ -41,14 +41,18 @@ class SquadraController extends Controller
         $prevFlag = $prev ? $wc->bandieraUrl($prev->team_code, null) : null;
         $nextFlag = $next ? $wc->bandieraUrl($next->team_code, null) : null;
 
+        // 'forma' => come va ritagliata la miniatura nella barra bandiera
+        // tonda per le squadre, quadrata per le locandine dei tornei.
         $barraPrev = $prev ? [
             'url'   => route('squadra.show', $prev->team_code),
             'img'   => $prevFlag,
+            'forma' => 'tonda',
             'label' => $prev->team_name,
         ] : null;
         $barraNext = $next ? [
             'url'   => route('squadra.show', $next->team_code),
             'img'   => $nextFlag,
+            'forma' => 'tonda',
             'label' => $next->team_name,
         ] : null;
 

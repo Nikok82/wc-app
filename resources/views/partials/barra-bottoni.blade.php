@@ -22,8 +22,17 @@
     .wc-barra .wcb-ctx{display:flex;align-items:center;gap:4px;color:#ffff00;
         text-decoration:none;padding:3px;max-width:100%;}
     .wc-barra .wcb-ctx:hover{text-decoration:none;filter:brightness(1.1);}
+    /* Miniature contestuali: stessa altezza dei bottoni centrali (42px).
+       .tonda  -> bandiere delle squadre, cerchio di diametro 42px
+       .quadrata -> locandine dei tornei, quadrato di lato 42px
+       In entrambi i casi object-fit:cover, altrimenti l'immagine si
+       deforma nel riquadro invece di essere ritagliata. */
     .wc-barra .wcb-ctx img{height:42px;width:auto;max-width:56px;object-fit:contain;
         border-radius:4px;background:#ffffffcc;box-shadow:0 2px 6px rgba(0,0,0,.4);}
+    .wc-barra .wcb-ctx img.tonda{width:42px;height:42px;max-width:42px;
+        border-radius:50%;object-fit:cover;background:#ffffffcc;}
+    .wc-barra .wcb-ctx img.quadrata{width:42px;height:42px;max-width:42px;
+        border-radius:6px;object-fit:cover;background:#ffffffcc;}
     .wc-barra .wcb-ctx svg{width:18px;height:18px;flex:0 0 auto;display:block;}
     .wc-barra .wcb-ctx .wcb-ctx-icona svg{width:34px;height:34px;}
     @media (max-width:768px){
@@ -37,7 +46,8 @@
             <a class="wcb-ctx" href="{{ $barraPrev['url'] }}" title="{{ $barraPrev['label'] ?? '' }}">
                 {!! \App\Support\Icons::svg('angle-double-left') !!}
                 @if (!empty($barraPrev['img']))
-                    <img src="{{ $barraPrev['img'] }}" alt="{{ $barraPrev['label'] ?? '' }}"
+                    <img class="{{ $barraPrev['forma'] ?? '' }}"
+                         src="{{ $barraPrev['img'] }}" alt="{{ $barraPrev['label'] ?? '' }}"
                          onerror="this.style.display='none'">
                 @elseif (!empty($barraPrev['icon']))
                     <span class="wcb-ctx-icona">{!! \App\Support\Icons::svg($barraPrev['icon']) !!}</span>
@@ -57,7 +67,8 @@
         @if (!empty($barraNext))
             <a class="wcb-ctx" href="{{ $barraNext['url'] }}" title="{{ $barraNext['label'] ?? '' }}">
                 @if (!empty($barraNext['img']))
-                    <img src="{{ $barraNext['img'] }}" alt="{{ $barraNext['label'] ?? '' }}"
+                    <img class="{{ $barraNext['forma'] ?? '' }}"
+                         src="{{ $barraNext['img'] }}" alt="{{ $barraNext['label'] ?? '' }}"
                          onerror="this.style.display='none'">
                 @elseif (!empty($barraNext['icon']))
                     <span class="wcb-ctx-icona">{!! \App\Support\Icons::svg($barraNext['icon']) !!}</span>

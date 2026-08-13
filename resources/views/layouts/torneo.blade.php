@@ -32,16 +32,19 @@
                       font-size:2.6rem;font-weight:800;color:var(--giallo);
                       text-shadow:2px 2px 0 var(--verde),0 1px 6px rgba(0,0,0,.35);letter-spacing:-.5px;}
 
-        /* Barra dei tab: pulsanti verdi con icona */
+        /* Barra dei tab: pulsanti verdi con icona.
+           flex-wrap:nowrap tiene i 10 bottoni su una riga sola a qualsiasi
+           larghezza; con flex:1 e min-width:0 si restringono in proporzione
+           invece di andare a capo. */
         .buttons-box{position:relative;z-index:2;display:flex;flex-direction:row;gap:7px;
-                     padding:6px 0 18px;flex-wrap:wrap;}
+                     padding:6px 0 18px;flex-wrap:nowrap;}
         .buttons-box .button{display:flex;align-items:center;justify-content:center;
-                     flex:1;max-width:64px;height:46px;padding:7px;border:0;cursor:pointer;
+                     flex:1 1 0;min-width:0;max-width:64px;height:46px;padding:7px;border:0;cursor:pointer;
                      border-radius:6px;color:var(--giallo);
                      background:linear-gradient(142deg,#045e03 0%,#57c785 58%,#045e03 100%);
                      box-shadow:0 1px 3px rgba(0,0,0,.25);transition:filter .15s;}
         .buttons-box .button:hover{filter:brightness(1.08);}
-        .buttons-box .button svg{width:26px;height:26px;color:var(--giallo);}
+        .buttons-box .button svg{width:26px;height:26px;max-width:100%;color:var(--giallo);}
         .buttons-box .button.active{border:1px solid var(--giallo);
                      box-shadow:0 0 .1rem var(--giallo),0 0 .1rem var(--giallo),
                                 0 0 .5rem #08ff07ee,0 0 .5rem #08ff07ee;
@@ -103,7 +106,9 @@
 
         @media (max-width:560px){
             .torneo-title{font-size:1.9rem;}
-            .buttons-box .button{height:42px;max-width:none;}
+            .buttons-box{gap:4px;}
+            .buttons-box .button{height:42px;max-width:none;padding:4px;}
+            .buttons-box .button svg{width:22px;height:22px;}
             .podio{height:170px;}
         }
     </style>
@@ -118,11 +123,13 @@
         'barraPrev' => (isset($prev) && $prev) ? [
             'url'   => $prev['url'],
             'img'   => $prev['manifest'] ?? null,
+            'forma' => 'quadrata',
             'label' => 'Mondiale ' . $prev['year'],
         ] : null,
         'barraNext' => (isset($next) && $next) ? [
             'url'   => $next['url'],
             'img'   => $next['manifest'] ?? null,
+            'forma' => 'quadrata',
             'label' => 'Mondiale ' . $next['year'],
         ] : null,
     ])
