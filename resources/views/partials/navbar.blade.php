@@ -105,6 +105,8 @@
         </div>
     </div>
 
+    {{-- Spostata qui dalla home (14/08): era un link sotto i box "Scopri". --}}
+    <a class="drawer-voce" href="{{ route('classifica') }}">Classifica perpetua</a>
     <a class="drawer-voce" href="{{ route('giocatori.index') }}">Giocatori</a>
     <a class="drawer-voce" href="{{ route('allenatori.index') }}">Manager</a>
     <a class="drawer-voce" href="{{ route('arbitri.index') }}">Arbitri</a>

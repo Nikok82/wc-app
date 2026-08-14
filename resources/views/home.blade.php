@@ -14,27 +14,16 @@
         .home-main{display:flex;align-items:flex-start;justify-content:center;padding:32px 16px 60px;}
         .home-card{width:100%;max-width:560px;background:#fff;border-radius:18px;
                    box-shadow:0 12px 40px rgba(0,0,0,.35);padding:26px 22px 30px;}
-        .home-head{text-align:center;margin-bottom:20px;}
-        .home-head h1{margin:0;font-size:1.7rem;letter-spacing:-.3px;color:var(--verde);}
-        .home-head p{margin:4px 0 0;color:var(--muted);font-size:.9rem;}
-        .home-badge{display:inline-block;margin-top:8px;font-size:.72rem;text-transform:uppercase;
-                    letter-spacing:.5px;color:#fff;background:var(--verde2);padding:3px 10px;border-radius:999px;}
-
-        .menu{display:flex;flex-direction:column;gap:12px;margin-top:8px;}
+        .menu{display:flex;flex-direction:column;gap:12px;}
         .menu label{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;
                     color:var(--muted);margin:0 0 4px 4px;}
-        .menu select,.menu a.voce{width:100%;font:inherit;border-radius:10px;
+        .menu select{width:100%;font:inherit;border-radius:10px;
                     border:1px solid var(--line);padding:13px 14px;background:#fff;color:var(--ink);
                     cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;}
         .menu select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--verde) 50%),
                      linear-gradient(135deg,var(--verde) 50%,transparent 50%);
                      background-position:calc(100% - 18px) 50%,calc(100% - 12px) 50%;
                      background-size:6px 6px,6px 6px;background-repeat:no-repeat;}
-        .menu a.voce{font-weight:700;color:#fff;border:0;
-                     background:linear-gradient(142deg,#045e03 0%,#57c785 58%,#045e03 100%);
-                     text-decoration:none;box-shadow:0 1px 4px rgba(0,0,0,.2);}
-        .menu a.voce:hover{filter:brightness(1.08);text-decoration:none;}
-        .menu a.voce .freccia{color:var(--giallo);font-weight:800;}
         .gruppo{background:#f7faf8;border:1px solid var(--line);border-radius:12px;padding:12px 12px 14px;}
 
         /* ---- Box "Scopri una nazionale" / "Scopri un torneo" (03/08) ---- */
@@ -92,12 +81,6 @@
     @include('partials.navbar')
     <main class="home-main">
     <div class="home-card luce-bordo">
-        <div class="home-head">
-            <h1>FIFA WC History</h1>
-            <p>Storia dei Mondiali di calcio</p>
-            <span class="home-badge">Home provvisoria</span>
-        </div>
-
         <div class="menu">
             {{-- Dropdown Squadre/Tornei rimossi (08/08): la navigazione resta
                  nel drawer del menu (hamburger) e nei box "Scopri" qui sotto. --}}
@@ -121,12 +104,6 @@
                 <button type="button" class="scopri-altro" data-target="box-torneo"
                         data-url="{{ route('home.box.torneo') }}">Mostra un altro torneo</button>
             </div>
-
-            <a class="voce" href="{{ route('classifica') }}">Classifica perpetua <span class="freccia">›</span></a>
-            <a class="voce" href="{{ route('giocatori.index') }}">Giocatori <span class="freccia">›</span></a>
-            <a class="voce" href="{{ route('allenatori.index') }}">Manager <span class="freccia">›</span></a>
-            <a class="voce" href="{{ route('arbitri.index') }}">Arbitri <span class="freccia">›</span></a>
-            <a class="voce" href="{{ route('stadi.index') }}">Stadi <span class="freccia">›</span></a>
         </div>
     </div>
     </main>
