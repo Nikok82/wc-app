@@ -57,7 +57,8 @@ class AllenatoreController extends Controller
     /** Pagina completa della scheda allenatore. */
     public function show(string $id)
     {
-        return view('allenatore.show', $this->datiScheda($id));
+        return view('allenatore.show',
+            array_merge($this->datiScheda($id), $this->navigazione($id)));
     }
 
     /** Solo il frammento scheda (usato dal popup degli elenchi). */
@@ -67,6 +68,32 @@ class AllenatoreController extends Controller
     }
 
     /* ------------------------------------------------------------------ */
+
+    /**
+     * Barra bottoni: scheda precedente e successiva in ordine alfabetico,
+     * lo stesso dell'elenco da cui si arriva.
+     */
+    protected function navigazione(string $id): array
+    {
+        [$prev, $next] = $this->wc->vicini(
+            'awc_managers', 'manager_id', ['family_name', 'given_name'], $id
+        );
+
+        $voce = function ($v) {
+            if (! $v) {
+                return null;
+            }
+
+            return [
+                'url'   => route('allenatore.show', $v->manager_id),
+                'img'   => $this->wc->bandieraUrl($v->country_name, null),
+                'forma' => 'tonda',
+                'label' => trim($v->given_name.' '.$v->family_name),
+            ];
+        };
+
+        return ['barraPrev' => $voce($prev), 'barraNext' => $voce($next)];
+    }
 
     protected function datiScheda(string $id): array
     {

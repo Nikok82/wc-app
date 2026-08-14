@@ -84,6 +84,21 @@ class SquadraAnnoController extends Controller
             'flag'   => $this->wc->bandieraUrl($code, $tid),
             'prev'   => $prev,
             'next'   => $next,
+            // Barra bottoni globale: si salta all'edizione precedente e
+            // successiva della stessa nazionale, con la locandina del
+            // Mondiale di destinazione come miniatura quadrata.
+            'barraPrev' => $prev ? [
+                'url'   => route('squadra_anno.show', ['code' => $code, 'year' => $prev]),
+                'img'   => $this->wc->bandieraUrl($code, 'WC-'.$prev),
+                'forma' => 'tonda',
+                'label' => $titolo.' '.$prev,
+            ] : null,
+            'barraNext' => $next ? [
+                'url'   => route('squadra_anno.show', ['code' => $code, 'year' => $next]),
+                'img'   => $this->wc->bandieraUrl($code, 'WC-'.$next),
+                'forma' => 'tonda',
+                'label' => $titolo.' '.$next,
+            ] : null,
         ]);
     }
 

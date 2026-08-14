@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Flag;
 use App\Models\Squad;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -119,6 +120,65 @@ class WcService
         }
 
         return route('img', ['tipo' => 'clubs', 'file' => $logo]);
+    }
+
+    /**
+     * Voci precedente e successiva in un elenco ordinato, per la barra
+     * bottoni delle schede (stadi, arbitri, allenatori, giocatori).
+     *
+     * L'ordine e' quello alfabetico dell'elenco corrispondente, cosi'
+     * le frecce portano dove il visitatore si aspetta di finire.
+     * Il confronto sfrutta le tuple di MySQL, quindi bastano due query
+     * a prescindere da quante colonne compongono l'ordinamento.
+     *
+     * @param  string  $tabella   nome della tabella, senza prefisso di connessione
+     * @param  string  $colId     colonna identificativa
+     * @param  array   $colOrdine colonne che definiscono l'ordine
+     * @param  string  $idCorrente
+     * @return array   [precedente, successivo], ciascuno un oggetto o null
+     */
+    public function vicini(string $tabella, string $colId, array $colOrdine, string $idCorrente): array
+    {
+        $colonne = array_merge([$colId], $colOrdine);
+
+        $corrente = DB::table($tabella)->select($colonne)
+            ->where($colId, $idCorrente)->first();
+
+        if (! $corrente) {
+            return [null, null];
+        }
+
+        // La tupla di confronto include l'identificativo come ultimo
+        // elemento: senza, due omonimi si escluderebbero a vicenda e la
+        // navigazione salterebbe una scheda.
+        $tupla   = array_map(fn ($c) => $corrente->$c, $colOrdine);
+        $tupla[] = $corrente->$colId;
+
+        $espressione = '('.implode(', ', array_map(
+            fn ($c) => '`'.$c.'`', array_merge($colOrdine, [$colId])
+        )).')';
+        $segnaposti = '('.implode(', ', array_fill(0, count($tupla), '?')).')';
+
+        // MariaDB accetta le tuple nel confronto ma non nell'ordinamento:
+        // l'ORDER BY va scritto colonna per colonna.
+        $ordinaDesc = implode(', ', array_map(
+            fn ($c) => '`'.$c.'` DESC', array_merge($colOrdine, [$colId])
+        ));
+        $ordinaAsc = implode(', ', array_map(
+            fn ($c) => '`'.$c.'` ASC', array_merge($colOrdine, [$colId])
+        ));
+
+        $prev = DB::table($tabella)
+            ->whereRaw($espressione.' < '.$segnaposti, $tupla)
+            ->orderByRaw($ordinaDesc)
+            ->first();
+
+        $next = DB::table($tabella)
+            ->whereRaw($espressione.' > '.$segnaposti, $tupla)
+            ->orderByRaw($ordinaAsc)
+            ->first();
+
+        return [$prev, $next];
     }
 
     /* ----------------------------------------------------------------- */

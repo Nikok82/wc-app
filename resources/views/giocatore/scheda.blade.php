@@ -35,6 +35,34 @@
         </span>
     </div>
 
+    @if (!empty($club))
+        <div class="riga">
+            <span class="lbl">Club</span>
+            <span class="val club-lista">
+                @foreach ($club as $c)
+                    <span class="club-voce">
+                        @if ($c['logo'])
+                            <img src="{{ $c['logo'] }}" alt="" width="18" height="18"
+                                 loading="lazy" onerror="this.style.display='none'">
+                        @endif
+                        <span class="club-nome">{{ $c['nome'] }}</span>
+                        <span class="club-anno">{{ $c['anno'] }}</span>
+                    </span>
+                @endforeach
+            </span>
+        </div>
+        <style>
+            /* I nomi lunghi non devono allargare la riga oltre il box:
+               ogni voce e' un blocco a se' che va a capo per intero. */
+            .club-lista{display:flex;flex-wrap:wrap;gap:6px 14px;min-width:0;}
+            .club-voce{display:inline-flex;align-items:center;gap:6px;
+                white-space:nowrap;max-width:100%;}
+            .club-voce img{flex:none;border-radius:2px;}
+            .club-nome{overflow:hidden;text-overflow:ellipsis;}
+            .club-anno{color:var(--muted);font-size:12px;}
+        </style>
+    @endif
+
     <div class="riga riga-gare">
         <span class="lbl">Gare giocate</span>
         <span class="val">

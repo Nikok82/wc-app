@@ -72,7 +72,7 @@ class GiocatoreController extends Controller
     /** Pagina completa della scheda giocatore. */
     public function show(string $id)
     {
-        $dati = $this->datiScheda($id);
+        $dati = array_merge($this->datiScheda($id), $this->navigazione($id));
 
         return view('giocatore.show', $dati);
     }
@@ -86,6 +86,39 @@ class GiocatoreController extends Controller
     }
 
     /* ------------------------------------------------------------------ */
+
+    /**
+     * Barra bottoni: giocatore precedente e successivo in ordine
+     * alfabetico, lo stesso dell'elenco da cui si arriva. La miniatura
+     * e' la bandiera della nazionale con cui ha giocato l'ultima volta.
+     */
+    protected function navigazione(string $id): array
+    {
+        [$prev, $next] = $this->wc->vicini(
+            'awc_players', 'player_id', ['family_name', 'given_name'], $id
+        );
+
+        $voce = function ($v) {
+            if (! $v) {
+                return null;
+            }
+
+            $ultima = \Illuminate\Support\Facades\DB::table('awc_squads')
+                ->where('player_id', $v->player_id)
+                ->orderByDesc('tournament_id')->first();
+
+            return [
+                'url'   => route('giocatore.show', $v->player_id),
+                'img'   => $ultima
+                    ? $this->wc->bandieraUrl($ultima->team_code, $ultima->tournament_id)
+                    : null,
+                'forma' => 'tonda',
+                'label' => trim($v->given_name.' '.$v->family_name),
+            ];
+        };
+
+        return ['barraPrev' => $voce($prev), 'barraNext' => $voce($next)];
+    }
 
     protected function datiScheda(string $id): array
     {
@@ -188,7 +221,28 @@ class GiocatoreController extends Controller
             'anni'  => collect($anni)->map(fn ($a) => ['anno' => $a, 'tid' => 'WC-'.$a])->all(),
         ];
 
+        /* ---- Club di provenienza, uno per Mondiale disputato ---- */
+        $righeRosa = Squad::where('player_id', $g->player_id)
+            ->orderBy('tournament_id')->get();
+
+        $idClub = $righeRosa->pluck('team_past_id')->filter()->unique()->values();
+        $anagraficaClub = $idClub->isEmpty()
+            ? collect()
+            : \Illuminate\Support\Facades\DB::table('awc_clubs')
+                ->whereIn('id', $idClub)->get()->keyBy('id');
+
+        $club = $righeRosa->map(function ($r) use ($anagraficaClub) {
+            $c = $r->team_past_id ? ($anagraficaClub[$r->team_past_id] ?? null) : null;
+
+            return [
+                'anno' => (string) $this->wc->anno($r->tournament_id),
+                'nome' => $r->team_past ?: ($c->club_name ?? null),
+                'logo' => $this->wc->logoClubUrl($c->logo ?? null),
+            ];
+        })->filter(fn ($c) => ! empty($c['nome']))->values()->all();
+
         return [
+            'club'     => $club,
             'g'        => $g,
             'nome'     => trim(($g->given_name ?? '').' '.($g->family_name ?? '')),
             'nascita'  => $g->birth_date ? $g->birth_date->format('d/m/Y') : '',
