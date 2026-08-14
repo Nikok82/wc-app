@@ -15,6 +15,7 @@
         <button class="tab-btn"        data-section="managers"  title="Managers"  aria-label="Managers">{!! \App\Support\Icons::svg('strategy') !!}</button>
         <button class="tab-btn"        data-section="maglie"    title="Maglie"    aria-label="Maglie">@include('partials.icona-maglia')</button>
         <button class="tab-btn"        data-section="risultati" title="Risultati" aria-label="Risultati">{!! \App\Support\Icons::svg('chart') !!}</button>
+        <button class="tab-btn"        data-section="record"    title="Record"    aria-label="Record">{!! \App\Support\Icons::svg('trophy-2') !!}</button>
     </div>
 
     <div id="tab-content" class="luce-bordo">Caricamento…</div>

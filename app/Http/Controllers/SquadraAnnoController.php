@@ -242,34 +242,14 @@ class SquadraAnnoController extends Controller
     }
 
     /** Tab Record: gli stessi numeri della scheda squadra, sul solo torneo. */
-    public function record(string $code, string $year)
+    public function record(string $code, string $year, \App\Services\RecordService $record)
     {
         [$code, $tid] = $this->base($code, $year);
 
-        $partite = TeamAppearance::where('team_code', $code)
-            ->where('tournament_id', $tid)->get();
+        // I primati dell'edizione, calcolati sulle sole partite di questa
+        // squadra in questo torneo.
+        $rec = $record->perSquadraAnno($code, $tid);
 
-        $giocate    = $partite->count();
-        $vittorie   = $partite->where('win', 1)->count();
-        $pareggi    = $partite->where('draw', 1)->count();
-        $sconfitte  = $partite->where('lose', 1)->count();
-        $gol_fatti  = $partite->sum('goals_for');
-        $gol_subiti = $partite->sum('goals_against');
-
-        $perc = fn ($n) => $giocate > 0 ? round($n / $giocate * 100) : 0;
-
-        $record = [
-            'giocate'        => $giocate,
-            'vittorie'       => $vittorie,
-            'pareggi'        => $pareggi,
-            'sconfitte'      => $sconfitte,
-            'gol_fatti'      => $gol_fatti,
-            'gol_subiti'     => $gol_subiti,
-            'perc_vittorie'  => $perc($vittorie),
-            'perc_pareggi'   => $perc($pareggi),
-            'perc_sconfitte' => $perc($sconfitte),
-        ];
-
-        return view('squadra.partials.record', compact('record', 'code'));
+        return view('partials.record', compact('rec', 'code'));
     }
 }

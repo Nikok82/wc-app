@@ -108,9 +108,16 @@ class TorneoController extends Controller
         ]);
     }
 
-    public function record(string $tournamentId)
+    public function record(string $tournamentId, \App\Services\RecordService $record)
     {
-        return view('torneo.partials.placeholder', ['sezione' => 'Record']);
+        $tournamentId = strtoupper($tournamentId);
+        abort_if(! $this->svc->torneo($tournamentId), 404);
+
+        // Nell'ambito torneo il capocannoniere non compare: c'e' gia' la
+        // tab Marcatori e ripeterlo qui non aggiunge nulla.
+        $rec = $record->perTorneo($tournamentId);
+
+        return view('partials.record', compact('rec'));
     }
 
     /**

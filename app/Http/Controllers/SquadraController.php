@@ -339,6 +339,18 @@ class SquadraController extends Controller
      * squadra ai Mondiali, calcolati al volo da awc_team_appearances. Le 3 torte
      * 3D arriveranno in Fase B; la tab "Record" dettagliata in Fase D.
      */
+    /**
+     * Tab Record: primati di tutta la storia della squadra ai Mondiali,
+     * non della singola edizione.
+     */
+    public function record(string $code, \App\Services\RecordService $record)
+    {
+        $code = strtoupper($code);
+        $rec  = $record->perSquadra($code);
+
+        return view('partials.record', compact('rec', 'code'));
+    }
+
     public function risultati(string $code)
     {
         $code = strtoupper($code);
