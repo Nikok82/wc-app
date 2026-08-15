@@ -65,7 +65,12 @@
                         <img class="mt-gol-fl" src="{{ $g['flag'] }}" alt="{{ $g['team_code'] }}"
                              onerror="this.style.display='none'">
                     @endif
-                    <span class="mt-gol-nome">{{ $g['nome'] }}</span>
+                    @if (!empty($g['player_id']))
+                        <a class="mt-gol-nome" href="{{ route('giocatore.show', $g['player_id']) }}"
+                           title="Scheda giocatore">{{ $g['nome'] }}</a>
+                    @else
+                        <span class="mt-gol-nome">{{ $g['nome'] }}</span>
+                    @endif
                     @if ($g['own_goal'])
                         <span class="mt-gol-nota">(aut.)</span>
                     @elseif ($g['penalty'])

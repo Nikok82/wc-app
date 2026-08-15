@@ -12,6 +12,10 @@
         color:#8b968f;}
     .gol-fl{width:15px;height:10px;object-fit:cover;border-radius:1px;flex:none;
         box-shadow:0 1px 1px rgba(0,0,0,.2);}
-    .gol-nome{overflow:hidden;text-overflow:ellipsis;color:var(--ink);}
+    /* Il nome e' un link alla scheda giocatore, ma nel tabellino deve
+       restare discreto: colore del testo, sottolineatura solo al passaggio. */
+    .gol-nome{overflow:hidden;text-overflow:ellipsis;color:var(--ink);
+        text-decoration:none;}
+    a.gol-nome:hover{text-decoration:underline;color:var(--accent);}
     .gol-nota{color:#8b968f;font-style:italic;}
 </style>

@@ -298,9 +298,11 @@
             return;
         }
 
-        // Apertura popup partita (spostato su <body> per lo stacking context)
+        // Apertura popup partita (spostato su <body> per lo stacking context).
+        // I link interni alla card (nomi dei marcatori, B1 del 15/08) devono
+        // restare link: se il click parte da un <a>, il popup non si apre.
         var card = e.target.closest('[data-popup]');
-        if (card) {
+        if (card && !e.target.closest('a')) {
             var id = card.dataset.popup;
             var pop = document.getElementById(id);
             var ov = document.getElementById('ov-' + id);

@@ -137,7 +137,9 @@
         text-align:right;color:#8b968f;}
     #torneo-partite .mt-gol-fl{width:15px;height:10px;object-fit:cover;border-radius:1px;
         flex:none;box-shadow:0 1px 1px rgba(0,0,0,.2);}
-    #torneo-partite .mt-gol-nome{overflow:hidden;text-overflow:ellipsis;color:#16231d;}
+    #torneo-partite .mt-gol-nome{overflow:hidden;text-overflow:ellipsis;color:#16231d;
+        text-decoration:none;}
+    #torneo-partite a.mt-gol-nome:hover{text-decoration:underline;color:var(--verde);}
     #torneo-partite .mt-gol-nota{color:#8b968f;font-style:italic;}
     #torneo-partite .gara-bracket{flex:1;padding:2px 12px 2px 2px;border-right:1px solid #999;min-width:0;}
     #torneo-partite .gara-bracket .home,#torneo-partite .gara-bracket .away{display:flex;
