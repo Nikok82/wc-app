@@ -18,8 +18,15 @@
     </div>
 
     <div class="body-group">
-        <div class="groups-matches">
-            <div class="label">Partite:</div>
+        {{-- B3 (15/08): le partite stanno raccolte e si aprono al clic, come
+             gia' fa il riquadro dei marcatori. <details> invece di uno script:
+             il frammento arriva via fetch e i <script> non verrebbero eseguiti,
+             mentre il comportamento nativo funziona sempre. --}}
+        <details class="part-box">
+            <summary>
+                <span class="label">Partite</span>
+                <span class="arrow">▼</span>
+            </summary>
             <div class="partite-list">
                 @foreach ($g['partite'] as $p)
                     @include('torneo.partials._match_card', [
@@ -31,7 +38,7 @@
                     ])
                 @endforeach
             </div>
-        </div>
+        </details>
 
         <div class="body-table">
             <div class="table-gironi">

@@ -79,18 +79,24 @@
                 <div class="ko-view" data-view="list">
                     @foreach ($rounds as $round)
                         <div class="round">
-                            <div class="label">{{ $round['label'] }}</div>
-                            <div class="partite-list">
-                                @foreach ($round['partite'] as $p)
-                                    @include('torneo.partials._match_card', [
-                                        'p'     => $p,
-                                        'pid'   => 'pop-ko-'.$p['match_id'],
-                                        // Nella fase a eliminazione chi perde
-                                        // esce dal torneo: il nome va barrato.
-                                        'barra' => true,
-                                    ])
-                                @endforeach
-                            </div>
+                            {{-- B3: anche qui le partite si aprono al clic --}}
+                            <details class="part-box">
+                                <summary>
+                                    <span class="label">{{ $round['label'] }}</span>
+                                    <span class="arrow">▼</span>
+                                </summary>
+                                <div class="partite-list">
+                                    @foreach ($round['partite'] as $p)
+                                        @include('torneo.partials._match_card', [
+                                            'p'     => $p,
+                                            'pid'   => 'pop-ko-'.$p['match_id'],
+                                            // Nella fase a eliminazione chi perde
+                                            // esce dal torneo: il nome va barrato.
+                                            'barra' => true,
+                                        ])
+                                    @endforeach
+                                </div>
+                            </details>
                             @include('torneo.partials._marcatori_box', ['marc' => $round['marcatori']])
                         </div>
                     @endforeach
@@ -128,8 +134,10 @@
     #torneo-partite .title-group .g2{font-size:56px;margin-left:16px;line-height:1;}
     #torneo-partite .title-group .g2.finale-1950{font-size:38px;}
     #torneo-partite .body-group{display:flex;flex-direction:column;padding:0 10px 18px;}
-    #torneo-partite .groups-matches .label{font-size:20px;font-weight:700;
-        border-bottom:1px dotted #000;padding:4px 0 4px 8px;margin-bottom:8px;}
+    /* La classe .groups-matches e' sparita con la fisarmonica (B3): lo
+       stile del titolo "Partite" ora vive dentro il summary del box. */
+    #torneo-partite .part-box > summary .label{font-size:20px;font-weight:700;
+        border-bottom:1px dotted #000;padding:4px 0 4px 8px;}
 
     /* ---- card partita ---- */
     #torneo-partite .partite-list{display:flex;flex-direction:column;}
@@ -187,6 +195,28 @@
         object-fit:cover;flex:none;}
     #torneo-partite .table-gironi .c2 .tcode{display:none;font-size:12px;}
     #torneo-partite .table-gironi .advanced{background:rgba(0,200,0,.35);}
+
+    /* ---- B3: partite a fisarmonica (gironi e fase a eliminazione) ---- */
+    #torneo-partite .part-box{margin-bottom:6px;}
+    #torneo-partite .part-box > summary{display:flex;align-items:center;
+        justify-content:space-between;gap:8px;cursor:pointer;list-style:none;
+        padding:4px 8px 4px 0;}
+    #torneo-partite .part-box > summary::-webkit-details-marker{display:none;}
+    #torneo-partite .part-box > summary .label{margin-bottom:0;flex:1;}
+    #torneo-partite .part-box > summary .arrow{transition:transform .4s;
+        display:inline-block;color:var(--verde);font-size:13px;padding-right:4px;}
+    #torneo-partite .part-box[open] > summary .arrow{transform:rotate(-180deg);}
+    /* Discesa morbida all'apertura: le card partono compresse e si
+       distendono. Con prefers-reduced-motion l'animazione sparisce. */
+    #torneo-partite .part-box[open] .partite-list{animation:part-scendi .28s ease-out;}
+    @keyframes part-scendi{
+        from{opacity:0;transform:translateY(-6px);}
+        to{opacity:1;transform:translateY(0);}
+    }
+    @media (prefers-reduced-motion:reduce){
+        #torneo-partite .part-box[open] .partite-list{animation:none;}
+        #torneo-partite .part-box > summary .arrow{transition:none;}
+    }
 
     /* ---- marcatori espandibili ---- */
     #torneo-partite .marc-box{margin:10px 0 0;border-top:1px solid #ccc;}
