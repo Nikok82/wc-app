@@ -13,17 +13,32 @@
         ? 'bold'
         : (($barra && $p['winner'] === $p['home']['name']) ? 'lose' : '');
 
-    $quando = collect([
-        $p['date'] ? \Carbon\Carbon::parse($p['date'])->format('d/m/Y') : null,
-        $p['stadium'] ?: null,
-        $p['city'] ?: null,
-    ])->filter()->implode(' · ');
+    // D1 (15/08): la riga sopra la card resta "data · stadio · citta'", ma
+    // lo stadio, quando ne conosciamo l'id, e' un link alla sua scheda.
+    // Percio' non e' piu' una stringa sola ma tre pezzi da comporre.
+    $quandoData  = $p['date'] ? \Carbon\Carbon::parse($p['date'])->format('d/m/Y') : null;
+    $quandoLuogo = $p['city'] ?: null;
+    $quandoVuota = ! $quandoData && ! $p['stadium'] && ! $quandoLuogo;
 @endphp
 
 <div class="matches" data-popup="{{ $pid }}">
-    @if ($quando)
-        <div class="mt-quando">{{ $quando }}</div>
-    @endif
+    @unless ($quandoVuota)
+        <div class="mt-quando">
+            @if ($quandoData){{ $quandoData }}@endif
+            @if ($p['stadium'])
+                @if ($quandoData)<span class="mt-sep"> · </span>@endif
+                @if (!empty($p['stadium_id']))
+                    <a href="{{ route('stadio.show', $p['stadium_id']) }}">{{ $p['stadium'] }}</a>
+                @else
+                    {{ $p['stadium'] }}
+                @endif
+            @endif
+            @if ($quandoLuogo)
+                @if ($quandoData || $p['stadium'])<span class="mt-sep"> · </span>@endif
+                {{ $quandoLuogo }}
+            @endif
+        </div>
+    @endunless
 
     <div class="mt-corpo">
         <div class="gara-bracket">

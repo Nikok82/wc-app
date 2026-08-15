@@ -315,7 +315,9 @@ class SquadraController extends Controller
             // Club distinti (dedup per id club; ignora righe senza club)
             $clubList = $conv->pluck('team_past_id')->filter()->unique()
                 ->map(fn ($id) => $clubs[$id] ?? null)->filter()
-                ->map(fn ($c) => ['nome' => $c->club_name, 'logo' => $wc->logoClubUrl($c->logo)])
+                // D1: 'id' per il link alla scheda del club (sezione C2)
+                ->map(fn ($c) => ['id' => $c->id, 'nome' => $c->club_name,
+                                  'logo' => $wc->logoClubUrl($c->logo)])
                 ->values();
 
             return [

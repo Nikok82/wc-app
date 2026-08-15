@@ -13,7 +13,15 @@
 
 <div class="fm-card" data-popup="{{ $pid }}">
     @if ($p['stadium'])
-        <div class="fm-stadio"><i></i><span>{{ $p['stadium'] }}</span></div>
+        {{-- D1: lo stadio porta alla sua scheda. La card apre il popup
+             partita, ma wc.js ignora i click partiti da un <a>. --}}
+        <div class="fm-stadio"><i></i>
+            @if (!empty($p['stadium_id']))
+                <a href="{{ route('stadio.show', $p['stadium_id']) }}">{{ $p['stadium'] }}</a>
+            @else
+                <span>{{ $p['stadium'] }}</span>
+            @endif
+        </div>
     @endif
 
     <div class="fm-sq {{ $homeCls }}">

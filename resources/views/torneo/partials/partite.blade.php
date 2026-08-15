@@ -149,6 +149,12 @@
     #torneo-partite .matches:nth-child(even){background:#f6f6f6;}
     #torneo-partite .mt-quando{font-size:12px;color:#6b7a72;margin-bottom:5px;
         white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    /* D1: lo stadio e' un link ma nella riga deve restare grigio come il
+       resto, altrimenti spicca piu' del punteggio. */
+    #torneo-partite .mt-quando a{color:inherit;text-decoration:none;}
+    #torneo-partite .mt-quando a:hover{color:var(--verde);text-decoration:underline;}
+    .fm-stadio a{color:inherit;text-decoration:none;}
+    .fm-stadio a:hover{color:var(--verde);text-decoration:underline;}
     #torneo-partite .mt-corpo{display:flex;flex-direction:row;align-items:center;min-width:0;}
     #torneo-partite .mt-gol{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:6px;
         padding-top:5px;border-top:1px dotted #bbb;font-size:12px;color:#6b7a72;min-width:0;}

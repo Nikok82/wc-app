@@ -260,6 +260,9 @@ class TorneoPartiteService
             'date'       => $m->match_date,
             'time'       => $m->match_time,
             'stadium'    => $m->stadium_name,
+            // D1 (15/08): id dello stadio, per il link alla sua scheda dalle
+            // card partita. Puo' mancare sulle edizioni piu' vecchie.
+            'stadium_id' => $m->stadium_id ?? null,
             'city'       => $m->city_name ?? null,
             'stage'      => $m->stage_name,
             'group'      => $m->group_name,

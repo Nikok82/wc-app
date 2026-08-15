@@ -251,6 +251,10 @@ class GiocatoreController extends Controller
                 'anno' => (string) $this->wc->anno($r->tournament_id),
                 'nome' => $r->team_past ?: ($c->club_name ?? null),
                 'logo' => $this->wc->logoClubUrl($c->logo ?? null),
+                // D1 (15/08): l'id serve al link verso la scheda del club.
+                // Resta null per le righe che hanno solo il nome scritto a
+                // mano in team_past, senza corrispondenza in awc_clubs.
+                'id'   => $c->id ?? null,
             ];
         })->filter(fn ($c) => ! empty($c['nome']))->values()->all();
 

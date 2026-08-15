@@ -90,10 +90,21 @@
                                 @endforeach
                             </td>
                             <td class="c-clubs">
+                                {{-- D1 (15/08): lo stemma porta alla scheda del
+                                     club, ora che la sezione esiste. Senza id
+                                     (nome scritto solo in team_past) resta
+                                     un'immagine muta. --}}
                                 @forelse ($g['club'] as $c)
                                     @if ($c['logo'])
-                                        <img src="{{ $c['logo'] }}" alt="{{ $c['nome'] }}" title="{{ $c['nome'] }}"
-                                             width="18" height="18" loading="lazy" onerror="this.style.display='none'">
+                                        @if (!empty($c['id']))
+                                            <a href="{{ route('club.show', $c['id']) }}" title="{{ $c['nome'] }}"><img
+                                                 src="{{ $c['logo'] }}" alt="{{ $c['nome'] }}"
+                                                 width="18" height="18" loading="lazy"
+                                                 onerror="this.style.display='none'"></a>
+                                        @else
+                                            <img src="{{ $c['logo'] }}" alt="{{ $c['nome'] }}" title="{{ $c['nome'] }}"
+                                                 width="18" height="18" loading="lazy" onerror="this.style.display='none'">
+                                        @endif
                                     @endif
                                 @empty
                                     —

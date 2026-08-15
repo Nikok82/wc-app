@@ -45,7 +45,12 @@
                             <img src="{{ $c['logo'] }}" alt="" width="18" height="18"
                                  loading="lazy" onerror="this.style.display='none'">
                         @endif
-                        <span class="club-nome">{{ $c['nome'] }}</span>
+                        {{-- D1: il club porta alla sua scheda (sezione C2) --}}
+                        @if (!empty($c['id']))
+                            <a class="club-nome" href="{{ route('club.show', $c['id']) }}">{{ $c['nome'] }}</a>
+                        @else
+                            <span class="club-nome">{{ $c['nome'] }}</span>
+                        @endif
                         <span class="club-anno">{{ $c['anno'] }}</span>
                     </span>
                 @endforeach
