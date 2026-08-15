@@ -1,0 +1,638 @@
+From 513be67c8dbaef27a942b9fa19f68f6518e006a3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 15 Aug 2026 08:56:09 +0000
+Subject: [PATCH] Tab Partite: nuova impaginazione nelle tre pagine, con
+ marcatori
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Squadra-anno — impaginazione C
+Elenco raggruppato per edizione: data, bandiera e nome dell'avversario,
+punteggio colorato secondo l'esito. Sotto ogni partita l'elenco dei
+marcatori.
+
+Squadra — impaginazione B raggruppata per edizione
+Scheda a due lati con le squadre nell'ordine reale della partita, casa a
+sinistra e trasferta a destra, non nel punto di vista della squadra. La
+perdente non viene barrata. Le cinque colonne (bandiera, nome,
+punteggio, nome, bandiera) hanno larghezze fisse per bandiere e
+punteggio, quindi le bandiere restano incolonnate da una riga all'altra;
+i nomi stanno in colonne minmax(0,1fr) e vengono troncati invece di
+sfondare il contenitore. Marcatori sotto la riga dei nomi.
+
+Torneo — impaginazione A
+La card diventa una colonna: data, stadio e citta' sopra la riga di
+bandiere e nomi, marcatori sotto, dove prima stava la data. Niente
+pallino con l'esito. La barratura della perdente resta solo nella fase a
+eliminazione, dove una sconfitta manda a casa: nei gironi, e nel girone
+finale del 1950, non si barra piu' nessuno.
+Le classifiche restavano gia' sotto le partite di ogni girone: verificato
+che nessuna regola le affianchi a nessuna larghezza.
+
+WcService::golPerPartite() raccoglie i marcatori di piu' partite in una
+query sola. La bandiera e' quella della squadra a cui la rete e'
+accreditata e non quella di chi la realizza: cosi' un autogol compare
+sotto la squadra che ne beneficia, e l'annotazione lo chiarisce.
+
+Aggiunta 'city' ai dati della partita del torneo: c'era in tabella ma
+non veniva letta.
+---
+ .../Controllers/SquadraAnnoController.php     |  12 +-
+ app/Http/Controllers/SquadraController.php    |  41 ++++++-
+ app/Services/TorneoPartiteService.php         |   1 +
+ app/Services/WcService.php                    |  49 ++++++++
+ .../views/partials/gol-partita-css.blade.php  |  17 +++
+ .../views/partials/gol-partita.blade.php      |  23 ++++
+ .../views/squadra/partials/partite.blade.php  | 114 ++++++++++++------
+ .../squadra_anno/partials/partite.blade.php   |  67 ++++++++++
+ .../views/torneo/partials/_girone.blade.php   |   3 +
+ .../torneo/partials/_match_card.blade.php     |  97 ++++++++++-----
+ .../views/torneo/partials/partite.blade.php   |  28 ++++-
+ 11 files changed, 381 insertions(+), 71 deletions(-)
+ create mode 100644 resources/views/partials/gol-partita-css.blade.php
+ create mode 100644 resources/views/partials/gol-partita.blade.php
+ create mode 100644 resources/views/squadra_anno/partials/partite.blade.php
+
+diff --git a/app/Http/Controllers/SquadraAnnoController.php b/app/Http/Controllers/SquadraAnnoController.php
+index ff69338..881f27d 100644
+--- a/app/Http/Controllers/SquadraAnnoController.php
++++ b/app/Http/Controllers/SquadraAnnoController.php
+@@ -128,7 +128,17 @@ public function partite(string $code, string $year)
+             ->orderBy('match_date')
+             ->get();
+ 
+-        return view('squadra.partials.partite', compact('partite', 'code'));
++        // Bandiera dell'avversario, dell'epoca del torneo.
++        foreach ($partite as $p) {
++            $p->opponent_flag = $this->wc->bandieraUrl($p->opponent_code, $tid);
++        }
++
++        $gol = $this->wc->golPerPartite($partite->pluck('match_id')->all());
++
++        $titoloGruppo = ($partite->first()->tournament_name ?? '') ?: $year;
++
++        return view('squadra_anno.partials.partite',
++            compact('partite', 'gol', 'code', 'titoloGruppo'));
+     }
+ 
+     /** Tab Convocati: rosa + allenatori + statistiche della spedizione. */
+diff --git a/app/Http/Controllers/SquadraController.php b/app/Http/Controllers/SquadraController.php
+index b66004b..f47a615 100644
+--- a/app/Http/Controllers/SquadraController.php
++++ b/app/Http/Controllers/SquadraController.php
+@@ -89,12 +89,51 @@ public function info(string $code)
+     public function partite(string $code)
+     {
+         $code = strtoupper($code);
++        $wc   = app(\App\Services\WcService::class);
+ 
+         $partite = \App\Models\TeamAppearance::where('team_code', $code)
+             ->orderBy('match_date')
+             ->get();
+ 
+-        return view('squadra.partials.partite', compact('partite', 'code'));
++        $gol = $wc->golPerPartite($partite->pluck('match_id')->all());
++
++        // Le partite sono raggruppate per edizione, come nella pagina
++        // squadra-anno: su piu' di ottanta incontri un elenco piatto non
++        // dice piu' nulla.
++        $gruppi = [];
++        foreach ($partite as $p) {
++            $titolo = $p->tournament_name ?: $p->tournament_id;
++
++            // In casa la squadra sta a sinistra, in trasferta a destra:
++            // l'ordine e' quello reale della partita, non quello del
++            // punto di vista della squadra.
++            $casa = (bool) $p->home_team;
++
++            $meta = collect([
++                $p->match_date ? $p->match_date->format('d/m/Y') : null,
++                $p->stage_name ? mb_convert_case($p->stage_name, MB_CASE_TITLE) : null,
++                $p->stadium_name ?? null,
++            ])->filter()->implode(' · ');
++
++            $gruppi[$titolo][] = [
++                'match_id' => $p->match_id,
++                'meta'     => $meta,
++                'casa' => [
++                    'nome' => $casa ? $p->team_name : $p->opponent_name,
++                    'code' => $casa ? $p->team_code : $p->opponent_code,
++                    'gol'  => $casa ? $p->goals_for : $p->goals_against,
++                    'flag' => $wc->bandieraUrl($casa ? $p->team_code : $p->opponent_code, $p->tournament_id),
++                ],
++                'ospite' => [
++                    'nome' => $casa ? $p->opponent_name : $p->team_name,
++                    'code' => $casa ? $p->opponent_code : $p->team_code,
++                    'gol'  => $casa ? $p->goals_against : $p->goals_for,
++                    'flag' => $wc->bandieraUrl($casa ? $p->opponent_code : $p->team_code, $p->tournament_id),
++                ],
++            ];
++        }
++
++        return view('squadra.partials.partite', compact('gruppi', 'gol', 'code'));
+     }
+ 
+     public function presenze(string $code)
+diff --git a/app/Services/TorneoPartiteService.php b/app/Services/TorneoPartiteService.php
+index 2cd859a..2cbf871 100644
+--- a/app/Services/TorneoPartiteService.php
++++ b/app/Services/TorneoPartiteService.php
+@@ -260,6 +260,7 @@ public function rigaPartita(object $m, ?Collection $sameStage = null): array
+             'date'       => $m->match_date,
+             'time'       => $m->match_time,
+             'stadium'    => $m->stadium_name,
++            'city'       => $m->city_name ?? null,
+             'stage'      => $m->stage_name,
+             'group'      => $m->group_name,
+             'home'       => [
+diff --git a/app/Services/WcService.php b/app/Services/WcService.php
+index 3f3d1b8..68f9ef3 100644
+--- a/app/Services/WcService.php
++++ b/app/Services/WcService.php
+@@ -181,6 +181,55 @@ public function vicini(string $tabella, string $colId, array $colOrdine, string
+         return [$prev, $next];
+     }
+ 
++    /**
++     * Marcatori di un gruppo di partite, pronti per essere elencati sotto
++     * il punteggio: minuto, bandiera, nome, eventuale annotazione.
++     *
++     * La bandiera e' quella della squadra a cui la rete viene accreditata
++     * (`team_code`) e non quella di chi la realizza: su un autogol il gol
++     * va contato sotto la squadra che ne beneficia, con l'annotazione che
++     * chiarisce l'equivoco.
++     *
++     * @param  array  $matchIds
++     * @return array  match_id => elenco di marcatori
++     */
++    public function golPerPartite(array $matchIds): array
++    {
++        if (empty($matchIds)) {
++            return [];
++        }
++
++        $righe = DB::table('awc_goals')
++            ->whereIn('match_id', $matchIds)
++            ->orderBy('match_id')
++            ->orderByRaw('COALESCE(minute_regulation, 999)')
++            ->orderBy('key_id')
++            ->get();
++
++        $out = [];
++        foreach ($righe as $g) {
++            $nota = null;
++            if ($g->own_goal) {
++                $nota = 'aut.';
++            } elseif ($g->penalty) {
++                $nota = 'rig.';
++            }
++
++            $out[$g->match_id][] = [
++                'player_id' => $g->player_id,
++                // Iniziale del nome piu' cognome: gli elenchi sotto le
++                // partite devono restare stretti.
++                'nome'      => trim(mb_substr((string) $g->given_name, 0, 1).'. '.$g->family_name, '. '),
++                'minuto'    => $g->minute_label ?: ($g->minute_regulation ? $g->minute_regulation."'" : ''),
++                'nota'      => $nota,
++                'team_code' => $g->team_code,
++                'flag'      => $this->bandieraUrl($g->team_code, $g->tournament_id),
++            ];
++        }
++
++        return $out;
++    }
++
+     /* ----------------------------------------------------------------- */
+     /*  Squadre di un torneo (awc_squads)                                 */
+     /* ----------------------------------------------------------------- */
+diff --git a/resources/views/partials/gol-partita-css.blade.php b/resources/views/partials/gol-partita-css.blade.php
+new file mode 100644
+index 0000000..06c6090
+--- /dev/null
++++ b/resources/views/partials/gol-partita-css.blade.php
+@@ -0,0 +1,17 @@
++{{-- Stili dell'elenco marcatori, condivisi da squadra, squadra-anno e
++     torneo. Estratti in un partial perche' le tre tab li includono tutte
++     e tre e duplicarli porterebbe a farli divergere. --}}
++<style>
++    /* min-width:0 su tutta la catena: senza, un nome lungo allarga la
++       riga e fa sbordare il contenitore in responsive. */
++    .gol-riga{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:5px;
++        font-size:12px;color:var(--muted);min-width:0;}
++    .gol-voce{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;
++        max-width:100%;}
++    .gol-min{font-variant-numeric:tabular-nums;min-width:26px;text-align:right;
++        color:#8b968f;}
++    .gol-fl{width:15px;height:10px;object-fit:cover;border-radius:1px;flex:none;
++        box-shadow:0 1px 1px rgba(0,0,0,.2);}
++    .gol-nome{overflow:hidden;text-overflow:ellipsis;color:var(--ink);}
++    .gol-nota{color:#8b968f;font-style:italic;}
++</style>
+diff --git a/resources/views/partials/gol-partita.blade.php b/resources/views/partials/gol-partita.blade.php
+new file mode 100644
+index 0000000..46b3190
+--- /dev/null
++++ b/resources/views/partials/gol-partita.blade.php
+@@ -0,0 +1,23 @@
++{{-- Elenco marcatori sotto il punteggio di una partita.
++     Attende $gol: elenco di ['minuto','flag','nome','nota','team_code'].
++
++     La bandiera e' quella della squadra a cui la rete e' accreditata, non
++     quella di chi la segna: cosi' un autogol compare sotto la squadra che
++     ne ha beneficiato, e l'annotazione "aut." chiarisce l'equivoco. --}}
++@if (!empty($gol))
++    <div class="gol-riga">
++        @foreach ($gol as $g)
++            <span class="gol-voce">
++                <span class="gol-min">{{ $g['minuto'] }}</span>
++                @if ($g['flag'])
++                    <img class="gol-fl" src="{{ $g['flag'] }}" alt="{{ $g['team_code'] }}"
++                         onerror="this.style.display='none'">
++                @endif
++                <span class="gol-nome">{{ $g['nome'] }}</span>
++                @if ($g['nota'])
++                    <span class="gol-nota">({{ $g['nota'] }})</span>
++                @endif
++            </span>
++        @endforeach
++    </div>
++@endif
+diff --git a/resources/views/squadra/partials/partite.blade.php b/resources/views/squadra/partials/partite.blade.php
+index fa85ea1..4912add 100644
+--- a/resources/views/squadra/partials/partite.blade.php
++++ b/resources/views/squadra/partials/partite.blade.php
+@@ -1,43 +1,85 @@
+-@if ($partite->isEmpty())
++{{-- Tab Partite della pagina squadra.
++     Impaginazione "B" (scheda a due lati) raggruppata per edizione come
++     nella "C". La squadra perdente non viene barrata.
++     Variabili: $gruppi (etichetta => partite), $gol (match_id => marcatori) --}}
++@if (empty($gruppi))
+     <p>Nessuna partita trovata per questa squadra.</p>
+ @else
+-    <div class="partite">
+-        @foreach ($partite as $p)
+-            <a class="partita" href="{{ route('partita.show', $p->match_id) }}"
+-               title="Vai alla scheda della partita">
+-                <span class="data">{{ $p->match_date ? $p->match_date->format('d/m/Y') : '' }}</span>
+-                <span class="avversario">vs {{ $p->opponent_name }}</span>
+-                <span class="punteggio">{{ $p->goals_for }}–{{ $p->goals_against }}</span>
+-                @if ($p->win)
+-                    <span class="esito win">V</span>
+-                @elseif ($p->draw)
+-                    <span class="esito draw">N</span>
+-                @elseif ($p->lose)
+-                    <span class="esito lose">P</span>
+-                @else
+-                    <span class="esito">–</span>
+-                @endif
+-                <span class="torneo">{{ $p->tournament_name }}</span>
+-            </a>
++    <div class="pb">
++        @foreach ($gruppi as $titolo => $righe)
++            <div class="pb-grp">
++                <div class="pb-ghead">
++                    <b>{{ $titolo }}</b>
++                    <span class="pb-gn">{{ count($righe) }} partite</span>
++                </div>
++
++                @foreach ($righe as $p)
++                    <div class="pb-card">
++                        <a class="pb-link" href="{{ route('partita.show', $p['match_id']) }}">
++                            <div class="pb-top">{{ $p['meta'] }}</div>
++                            {{-- Cinque colonne di larghezza fissa per bandiere e
++                                 punteggio: non dipendendo dal contenuto, le
++                                 bandiere restano incolonnate da una riga
++                                 all'altra. Le due colonne dei nomi sono
++                                 minmax(0,1fr), quindi si restringono insieme e i
++                                 nomi lunghi vengono troncati invece di sfondare
++                                 il contenitore. --}}
++                            <div class="pb-mid">
++                                <span class="pb-fl pb-fl-sx">
++                                    @if ($p['casa']['flag'])
++                                        <img src="{{ $p['casa']['flag'] }}" alt="{{ $p['casa']['code'] }}"
++                                             onerror="this.style.display='none'">
++                                    @endif
++                                </span>
++                                <span class="pb-nome pb-nome-sx">{{ $p['casa']['nome'] }}</span>
++                                <span class="pb-pt">{{ $p['casa']['gol'] }}&ndash;{{ $p['ospite']['gol'] }}</span>
++                                <span class="pb-nome pb-nome-dx">{{ $p['ospite']['nome'] }}</span>
++                                <span class="pb-fl pb-fl-dx">
++                                    @if ($p['ospite']['flag'])
++                                        <img src="{{ $p['ospite']['flag'] }}" alt="{{ $p['ospite']['code'] }}"
++                                             onerror="this.style.display='none'">
++                                    @endif
++                                </span>
++                            </div>
++                        </a>
++                        @include('partials.gol-partita', ['gol' => $gol[$p['match_id']] ?? []])
++                    </div>
++                @endforeach
++            </div>
+         @endforeach
+     </div>
+ 
++    @include('partials.gol-partita-css')
++
+     <style>
+-        .partita { display:flex; align-items:center; gap:12px; padding:9px 2px;
+-                   border-bottom:1px solid var(--line); font-size:14px;
+-                   color:var(--ink); }
+-        a.partita:hover { text-decoration:none; background:rgba(27,158,87,.07); }
+-        .partita:last-child { border-bottom:0; }
+-        .partita .data { color:var(--muted); width:84px; flex:none; }
+-        .partita .avversario { flex:1; font-weight:600; }
+-        .partita .punteggio { font-variant-numeric:tabular-nums; }
+-        .partita .esito { width:22px; height:22px; flex:none; border-radius:50%;
+-                          color:#fff; font-size:12px; font-weight:700;
+-                          display:flex; align-items:center; justify-content:center; }
+-        .partita .esito.win  { background:#1b9e57; }
+-        .partita .esito.draw { background:#b0b7b3; }
+-        .partita .esito.lose { background:#c0392b; }
+-        .partita .torneo { color:var(--muted); width:150px; flex:none;
+-                           text-align:right; font-size:12px; }
++        .pb-grp{margin-bottom:20px;}
++        .pb-ghead{display:flex;align-items:baseline;gap:9px;padding:8px 2px;
++            border-bottom:2px solid var(--accent);margin-bottom:10px;}
++        .pb-gn{font-size:12px;color:var(--muted);}
++        .pb-card{border:1px solid var(--line);border-radius:10px;padding:11px 12px;
++            background:#f8faf9;margin-bottom:9px;}
++        .pb-card:hover{border-color:var(--accent);}
++        .pb-link{display:block;text-decoration:none;color:inherit;}
++        .pb-link:hover{text-decoration:none;}
++        .pb-top{text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;
++            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
++        .pb-mid{display:grid;gap:6px 10px;align-items:center;
++            grid-template-columns:34px minmax(0,1fr) auto minmax(0,1fr) 34px;}
++        .pb-fl{display:flex;align-items:center;width:34px;}
++        .pb-fl-dx{justify-content:flex-end;}
++        .pb-fl img{width:34px;height:23px;object-fit:cover;border-radius:3px;
++            box-shadow:0 1px 3px rgba(0,0,0,.28);}
++        .pb-nome{font-weight:600;white-space:nowrap;overflow:hidden;
++            text-overflow:ellipsis;min-width:0;}
++        .pb-nome-sx{text-align:right;}
++        .pb-nome-dx{text-align:left;}
++        .pb-pt{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;
++            white-space:nowrap;padding:0 2px;}
++        @media (max-width:420px){
++            .pb-mid{grid-template-columns:26px minmax(0,1fr) auto minmax(0,1fr) 26px;gap:5px 7px;}
++            .pb-fl{width:26px;}
++            .pb-fl img{width:26px;height:18px;}
++            .pb-pt{font-size:18px;}
++        }
+     </style>
+-@endif
+\ No newline at end of file
++@endif
+diff --git a/resources/views/squadra_anno/partials/partite.blade.php b/resources/views/squadra_anno/partials/partite.blade.php
+new file mode 100644
+index 0000000..201c866
+--- /dev/null
++++ b/resources/views/squadra_anno/partials/partite.blade.php
+@@ -0,0 +1,67 @@
++{{-- Tab Partite della pagina squadra-anno.
++     Impaginazione "C": elenco raggruppato, riga compatta con avversario,
++     e sotto ogni partita l'elenco dei marcatori.
++     Variabili: $partite (TeamAppearance), $gol (match_id => marcatori),
++     $code, $titoloGruppo --}}
++@if ($partite->isEmpty())
++    <p>Nessuna partita trovata.</p>
++@else
++    <div class="pt-c">
++        <div class="pt-grp">
++            @if (!empty($titoloGruppo))
++                <div class="pt-ghead">
++                    <b>{{ $titoloGruppo }}</b>
++                    <span class="pt-gn">{{ $partite->count() }} partite</span>
++                </div>
++            @endif
++
++            @foreach ($partite as $p)
++                @php
++                    $esito = $p->win ? 'win' : ($p->draw ? 'draw' : ($p->lose ? 'lose' : ''));
++                @endphp
++                <div class="pt-riga pt-{{ $esito }}">
++                    <a class="pt-testa" href="{{ route('partita.show', $p->match_id) }}">
++                        <span class="pt-data">
++                            {{ $p->match_date ? $p->match_date->format('d/m') : '' }}
++                        </span>
++                        <span class="pt-avv">
++                            @if ($p->opponent_flag ?? null)
++                                <img class="pt-fl" src="{{ $p->opponent_flag }}"
++                                     alt="{{ $p->opponent_code }}" onerror="this.style.display='none'">
++                            @endif
++                            <span class="pt-nome">{{ $p->opponent_name }}</span>
++                        </span>
++                        <span class="pt-pt">{{ $p->goals_for }}–{{ $p->goals_against }}</span>
++                    </a>
++                    @include('partials.gol-partita', ['gol' => $gol[$p->match_id] ?? []])
++                </div>
++            @endforeach
++        </div>
++    </div>
++
++    @include('partials.gol-partita-css')
++
++    <style>
++        .pt-ghead{display:flex;align-items:baseline;gap:9px;padding:8px 2px;
++            border-bottom:2px solid var(--accent);margin-bottom:2px;}
++        .pt-gn{font-size:12px;color:var(--muted);}
++        .pt-riga{padding:9px 4px;border-bottom:1px solid var(--line);}
++        .pt-riga:last-child{border-bottom:0;}
++        .pt-riga:hover{background:rgba(27,158,87,.06);}
++        /* minmax(0,1fr) sulla colonna centrale: senza, un nome lungo
++           allarga la griglia e sborda dal box in responsive. */
++        .pt-testa{display:grid;grid-template-columns:auto minmax(0,1fr) auto;
++            gap:10px;align-items:center;text-decoration:none;color:inherit;}
++        .pt-testa:hover{text-decoration:none;}
++        .pt-data{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
++        .pt-avv{display:flex;align-items:center;gap:7px;min-width:0;}
++        .pt-fl{width:22px;height:15px;object-fit:cover;border-radius:2px;flex:none;
++            box-shadow:0 1px 2px rgba(0,0,0,.25);}
++        .pt-nome{font-weight:600;white-space:nowrap;overflow:hidden;
++            text-overflow:ellipsis;min-width:0;}
++        .pt-pt{font-variant-numeric:tabular-nums;font-weight:700;}
++        .pt-win  .pt-pt{color:#0f6e56;}
++        .pt-lose .pt-pt{color:#c0392b;}
++        .pt-draw .pt-pt{color:#5F5E5A;}
++    </style>
++@endif
+diff --git a/resources/views/torneo/partials/_girone.blade.php b/resources/views/torneo/partials/_girone.blade.php
+index 96cd6dd..c3eff9f 100644
+--- a/resources/views/torneo/partials/_girone.blade.php
++++ b/resources/views/torneo/partials/_girone.blade.php
+@@ -21,6 +21,9 @@
+                     @include('torneo.partials._match_card', [
+                         'p'   => $p,
+                         'pid' => 'pop-'.$ctx.'-'.$p['match_id'],
++                        // Nei gironi una sconfitta non elimina: niente barratura.
++                        // Nel girone finale del 1950 vale lo stesso principio.
++                        'barra' => false,
+                     ])
+                 @endforeach
+             </div>
+diff --git a/resources/views/torneo/partials/_match_card.blade.php b/resources/views/torneo/partials/_match_card.blade.php
+index aaca48a..ffb2a74 100644
+--- a/resources/views/torneo/partials/_match_card.blade.php
++++ b/resources/views/torneo/partials/_match_card.blade.php
+@@ -1,39 +1,80 @@
+-{{-- Card partita (traduzione di partita() del vecchio tema) + popup ui_game.
+-     Variabili: $p (rigaPartita), $pid (id univoco del popup), $tournamentId --}}
++{{-- Card partita del torneo, impaginazione "A".
++     Sopra la riga di bandiere e nomi stanno data, stadio e citta';
++     sotto, al posto della data, l'elenco dei marcatori.
++     Variabili: $p (rigaPartita), $pid (id univoco del popup), $ctx.
++     $barra: true nella fase a eliminazione, dove la perdente va barrata;
++     nei gironi resta false, perche' li' una sconfitta non elimina. --}}
+ @php
+-    $homeCls = $p['winner'] === $p['home']['name'] ? 'bold' : ($p['winner'] === $p['away']['name'] ? 'lose' : '');
+-    $awayCls = $p['winner'] === $p['away']['name'] ? 'bold' : ($p['winner'] === $p['home']['name'] ? 'lose' : '');
++    $barra    = $barra ?? false;
++    $homeCls  = $p['winner'] === $p['home']['name']
++        ? 'bold'
++        : (($barra && $p['winner'] === $p['away']['name']) ? 'lose' : '');
++    $awayCls  = $p['winner'] === $p['away']['name']
++        ? 'bold'
++        : (($barra && $p['winner'] === $p['home']['name']) ? 'lose' : '');
++
++    $quando = collect([
++        $p['date'] ? \Carbon\Carbon::parse($p['date'])->format('d/m/Y') : null,
++        $p['stadium'] ?: null,
++        $p['city'] ?: null,
++    ])->filter()->implode(' · ');
+ @endphp
+ 
+ <div class="matches" data-popup="{{ $pid }}">
+-    <div class="gara-bracket">
+-        <div class="home">
+-            @if ($p['home']['flag'])
+-                <img class="flag effetto_luce" src="{{ $p['home']['flag'] }}" alt="{{ $p['home']['code'] }}"
+-                     onerror="this.style.display='none'">
+-            @endif
+-            <div class="team puntini {{ $homeCls }}"><span>{{ $p['home']['name'] }}</span></div>
++    @if ($quando)
++        <div class="mt-quando">{{ $quando }}</div>
++    @endif
++
++    <div class="mt-corpo">
++        <div class="gara-bracket">
++            <div class="home">
++                @if ($p['home']['flag'])
++                    <img class="flag effetto_luce" src="{{ $p['home']['flag'] }}" alt="{{ $p['home']['code'] }}"
++                         onerror="this.style.display='none'">
++                @endif
++                <div class="team puntini {{ $homeCls }}"><span>{{ $p['home']['name'] }}</span></div>
++            </div>
++            <div class="away">
++                @if ($p['away']['flag'])
++                    <img class="flag effetto_luce" src="{{ $p['away']['flag'] }}" alt="{{ $p['away']['code'] }}"
++                         onerror="this.style.display='none'">
++                @endif
++                <div class="team puntini {{ $awayCls }}"><span>{{ $p['away']['name'] }}</span></div>
++            </div>
+         </div>
+-        <div class="away">
+-            @if ($p['away']['flag'])
+-                <img class="flag effetto_luce" src="{{ $p['away']['flag'] }}" alt="{{ $p['away']['code'] }}"
+-                     onerror="this.style.display='none'">
++        <div class="risult">
++            <div class="ris"><span>{{ $p['ris'] }}</span></div>
++            @if ($p['e_replay'])
++                <div class="ris-2"><span>replay</span></div>
++            @elseif ($p['replay'])
++                <div class="ris-2"><span>{{ $p['replay']['score'] }} d.R.</span></div>
++            @elseif ($p['dcr'])
++                <div class="ris-2"><span>d.c.r.</span></div>
++            @elseif ($p['dts'])
++                <div class="ris-2"><span>d.t.s.</span></div>
+             @endif
+-            <div class="team puntini {{ $awayCls }}"><span>{{ $p['away']['name'] }}</span></div>
+         </div>
+     </div>
+-    <div class="risult">
+-        <div class="ris"><span>{{ $p['ris'] }}</span></div>
+-        @if ($p['e_replay'])
+-            <div class="ris-2"><span>replay</span></div>
+-        @elseif ($p['replay'])
+-            <div class="ris-2"><span>{{ $p['replay']['score'] }} d.R.</span></div>
+-        @elseif ($p['dcr'])
+-            <div class="ris-2"><span>d.c.r.</span></div>
+-        @elseif ($p['dts'])
+-            <div class="ris-2"><span>d.t.s.</span></div>
+-        @endif
+-    </div>
++
++    @if (!empty($p['marcatori_match']))
++        <div class="mt-gol">
++            @foreach ($p['marcatori_match'] as $g)
++                <span class="mt-gol-voce">
++                    <span class="mt-gol-min">{{ $g['minuto'] }}</span>
++                    @if ($g['flag'])
++                        <img class="mt-gol-fl" src="{{ $g['flag'] }}" alt="{{ $g['team_code'] }}"
++                             onerror="this.style.display='none'">
++                    @endif
++                    <span class="mt-gol-nome">{{ $g['nome'] }}</span>
++                    @if ($g['own_goal'])
++                        <span class="mt-gol-nota">(aut.)</span>
++                    @elseif ($g['penalty'])
++                        <span class="mt-gol-nota">(rig.)</span>
++                    @endif
++                </span>
++            @endforeach
++        </div>
++    @endif
+ </div>
+ 
+ @include('torneo.partials._popup_partita', ['p' => $p, 'pid' => $pid])
+diff --git a/resources/views/torneo/partials/partite.blade.php b/resources/views/torneo/partials/partite.blade.php
+index febec36..8120c4e 100644
+--- a/resources/views/torneo/partials/partite.blade.php
++++ b/resources/views/torneo/partials/partite.blade.php
+@@ -70,8 +70,11 @@
+                             <div class="partite-list">
+                                 @foreach ($round['partite'] as $p)
+                                     @include('torneo.partials._match_card', [
+-                                        'p'   => $p,
+-                                        'pid' => 'pop-ko-'.$p['match_id'],
++                                        'p'     => $p,
++                                        'pid'   => 'pop-ko-'.$p['match_id'],
++                                        // Nella fase a eliminazione chi perde
++                                        // esce dal torneo: il nome va barrato.
++                                        'barra' => true,
+                                     ])
+                                 @endforeach
+                             </div>
+@@ -117,11 +120,26 @@
+ 
+     /* ---- card partita ---- */
+     #torneo-partite .partite-list{display:flex;flex-direction:column;}
+-    #torneo-partite .matches{display:flex;flex-direction:row;align-items:center;cursor:pointer;
+-        margin-bottom:8px;border-radius:6px;}
++    /* Impaginazione "A": data e luogo sopra, squadre al centro,
++       marcatori sotto. La card e' una colonna, non piu' una riga. */
++    #torneo-partite .matches{display:flex;flex-direction:column;cursor:pointer;
++        margin-bottom:8px;border-radius:6px;padding:7px 10px;min-width:0;}
+     #torneo-partite .matches:nth-child(odd){background:#ececec;}
+     #torneo-partite .matches:nth-child(even){background:#f6f6f6;}
+-    #torneo-partite .gara-bracket{flex:1;padding:6px 14px;border-right:1px solid #999;min-width:0;}
++    #torneo-partite .mt-quando{font-size:12px;color:#6b7a72;margin-bottom:5px;
++        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
++    #torneo-partite .mt-corpo{display:flex;flex-direction:row;align-items:center;min-width:0;}
++    #torneo-partite .mt-gol{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:6px;
++        padding-top:5px;border-top:1px dotted #bbb;font-size:12px;color:#6b7a72;min-width:0;}
++    #torneo-partite .mt-gol-voce{display:inline-flex;align-items:center;gap:4px;
++        white-space:nowrap;max-width:100%;}
++    #torneo-partite .mt-gol-min{font-variant-numeric:tabular-nums;min-width:26px;
++        text-align:right;color:#8b968f;}
++    #torneo-partite .mt-gol-fl{width:15px;height:10px;object-fit:cover;border-radius:1px;
++        flex:none;box-shadow:0 1px 1px rgba(0,0,0,.2);}
++    #torneo-partite .mt-gol-nome{overflow:hidden;text-overflow:ellipsis;color:#16231d;}
++    #torneo-partite .mt-gol-nota{color:#8b968f;font-style:italic;}
++    #torneo-partite .gara-bracket{flex:1;padding:2px 12px 2px 2px;border-right:1px solid #999;min-width:0;}
+     #torneo-partite .gara-bracket .home,#torneo-partite .gara-bracket .away{display:flex;
+         flex-direction:row;align-items:center;margin:4px 0;min-width:0;}
+     #torneo-partite .gara-bracket .flag{width:25px;height:25px;border-radius:50%;object-fit:cover;
+-- 
+2.43.0
+

@@ -1,0 +1,931 @@
+From 6e690494caa16af1b5cdbc774c80ad85c64044fa Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 14 Aug 2026 12:46:15 +0000
+Subject: [PATCH] Fase 5: tab Record per squadra, squadra-anno e torneo
+
+Il servizio RecordService calcola tredici primati sui tre ambiti:
+una squadra in una singola edizione, una squadra in tutta la sua storia,
+un'intera edizione. Nel torneo il capocannoniere non compare, perche'
+esiste gia' la tab Marcatori.
+
+I primati: giocatore piu' vecchio e piu' giovane schierato, eta' media
+dei convocati, marcatore piu' vecchio e piu' giovane, ammonizioni,
+espulsioni, rigori segnati e subiti, autogol a favore e commessi,
+migliori marcatori, miglior portiere. Ognuno rimanda alla partita in cui
+il primato e' stato stabilito e alla scheda del giocatore.
+
+Scelte che vale la pena annotare.
+
+Le eta' sono calcolate al giorno della partita e formattate in anni e
+giorni passando da una data reale, non dividendo per 365: con i
+bisestili la scorciatoia sfalsa il conto di una decina di giorni, e su un
+primato si nota. Zoff nella finale del 1982 risulta cosi' di 40 anni e
+133 giorni, che e' il dato storico.
+
+L'eta' media riguarda i convocati, non gli schierati, ed e' riferita
+alla prima partita della squadra in quell'edizione.
+
+Il miglior portiere e' quello con meno reti subite per partita fra chi ha
+giocato almeno il 60% delle partite dell'ambito. Se nessuno raggiunge
+quella quota, non si proclama un migliore e si elencano tutti i portieri
+con la rispettiva media: sulla storia completa del Belgio, per esempio,
+nessuno arriva al 60% delle 57 partite.
+
+Le espulsioni contano sia i rossi diretti sia le seconde ammonizioni.
+
+Negli autogol, awc_goals.team_code indica chi beneficia della rete e
+player_team_code la squadra di chi la realizza: le due voci sono quindi
+etichettate 'a favore' e 'commessi' invece che 'fatti' e 'subiti', che
+sarebbero ambigui.
+
+Cartellini e sostituzioni esistono solo dal 1970. Per le edizioni
+precedenti i primati relativi restano a zero e non nascosti, con un
+avviso in testa alla tab: l'assenza del dato e' essa stessa
+un'informazione.
+---
+ .../Controllers/SquadraAnnoController.php     |  30 +-
+ app/Http/Controllers/SquadraController.php    |  12 +
+ app/Http/Controllers/TorneoController.php     |  11 +-
+ app/Services/RecordService.php                | 612 ++++++++++++++++++
+ resources/views/partials/record.blade.php     | 134 ++++
+ resources/views/squadra/show.blade.php        |   1 +
+ routes/web.php                                |   1 +
+ 7 files changed, 774 insertions(+), 27 deletions(-)
+ create mode 100644 app/Services/RecordService.php
+ create mode 100644 resources/views/partials/record.blade.php
+
+diff --git a/app/Http/Controllers/SquadraAnnoController.php b/app/Http/Controllers/SquadraAnnoController.php
+index 4b9fc0e..ee10871 100644
+--- a/app/Http/Controllers/SquadraAnnoController.php
++++ b/app/Http/Controllers/SquadraAnnoController.php
+@@ -242,34 +242,14 @@ public function maglie(string $code, string $year)
+     }
+ 
+     /** Tab Record: gli stessi numeri della scheda squadra, sul solo torneo. */
+-    public function record(string $code, string $year)
++    public function record(string $code, string $year, \App\Services\RecordService $record)
+     {
+         [$code, $tid] = $this->base($code, $year);
+ 
+-        $partite = TeamAppearance::where('team_code', $code)
+-            ->where('tournament_id', $tid)->get();
+-
+-        $giocate    = $partite->count();
+-        $vittorie   = $partite->where('win', 1)->count();
+-        $pareggi    = $partite->where('draw', 1)->count();
+-        $sconfitte  = $partite->where('lose', 1)->count();
+-        $gol_fatti  = $partite->sum('goals_for');
+-        $gol_subiti = $partite->sum('goals_against');
+-
+-        $perc = fn ($n) => $giocate > 0 ? round($n / $giocate * 100) : 0;
+-
+-        $record = [
+-            'giocate'        => $giocate,
+-            'vittorie'       => $vittorie,
+-            'pareggi'        => $pareggi,
+-            'sconfitte'      => $sconfitte,
+-            'gol_fatti'      => $gol_fatti,
+-            'gol_subiti'     => $gol_subiti,
+-            'perc_vittorie'  => $perc($vittorie),
+-            'perc_pareggi'   => $perc($pareggi),
+-            'perc_sconfitte' => $perc($sconfitte),
+-        ];
++        // I primati dell'edizione, calcolati sulle sole partite di questa
++        // squadra in questo torneo.
++        $rec = $record->perSquadraAnno($code, $tid);
+ 
+-        return view('squadra.partials.record', compact('record', 'code'));
++        return view('partials.record', compact('rec', 'code'));
+     }
+ }
+diff --git a/app/Http/Controllers/SquadraController.php b/app/Http/Controllers/SquadraController.php
+index f5c77db..b66004b 100644
+--- a/app/Http/Controllers/SquadraController.php
++++ b/app/Http/Controllers/SquadraController.php
+@@ -339,6 +339,18 @@ public function managers(string $code)
+      * squadra ai Mondiali, calcolati al volo da awc_team_appearances. Le 3 torte
+      * 3D arriveranno in Fase B; la tab "Record" dettagliata in Fase D.
+      */
++    /**
++     * Tab Record: primati di tutta la storia della squadra ai Mondiali,
++     * non della singola edizione.
++     */
++    public function record(string $code, \App\Services\RecordService $record)
++    {
++        $code = strtoupper($code);
++        $rec  = $record->perSquadra($code);
++
++        return view('partials.record', compact('rec', 'code'));
++    }
++
+     public function risultati(string $code)
+     {
+         $code = strtoupper($code);
+diff --git a/app/Http/Controllers/TorneoController.php b/app/Http/Controllers/TorneoController.php
+index f5fe05f..713c83d 100644
+--- a/app/Http/Controllers/TorneoController.php
++++ b/app/Http/Controllers/TorneoController.php
+@@ -108,9 +108,16 @@ public function squadre(string $tournamentId)
+         ]);
+     }
+ 
+-    public function record(string $tournamentId)
++    public function record(string $tournamentId, \App\Services\RecordService $record)
+     {
+-        return view('torneo.partials.placeholder', ['sezione' => 'Record']);
++        $tournamentId = strtoupper($tournamentId);
++        abort_if(! $this->svc->torneo($tournamentId), 404);
++
++        // Nell'ambito torneo il capocannoniere non compare: c'e' gia' la
++        // tab Marcatori e ripeterlo qui non aggiunge nulla.
++        $rec = $record->perTorneo($tournamentId);
++
++        return view('partials.record', compact('rec'));
+     }
+ 
+     /**
+diff --git a/app/Services/RecordService.php b/app/Services/RecordService.php
+new file mode 100644
+index 0000000..5b13866
+--- /dev/null
++++ b/app/Services/RecordService.php
+@@ -0,0 +1,612 @@
++<?php
++
++namespace App\Services;
++
++use Illuminate\Support\Facades\DB;
++
++/**
++ * Calcola i primati mostrati nella tab Record.
++ *
++ * Tre ambiti, stessa logica:
++ *   - una squadra in una singola edizione   perSquadraAnno()
++ *   - una squadra in tutta la sua storia    perSquadra()
++ *   - un'intera edizione                    perTorneo()
++ *
++ * Nel torneo il capocannoniere non compare: esiste gia' una tab
++ * Marcatori dedicata e la ripetizione non aggiunge nulla.
++ *
++ * Le eta' sono sempre calcolate al giorno della partita, non a oggi
++ * ne' all'inizio del torneo. L'unica eccezione dichiarata e' l'eta'
++ * media, che per definizione riguarda i convocati e non gli schierati,
++ * quindi viene riferita alla prima partita della squadra nel torneo.
++ *
++ * Cartellini, rigori e sostituzioni esistono nel database solo dal
++ * 1970 in poi. Per le edizioni precedenti i primati relativi restano
++ * vuoti, senza essere nascosti: l'assenza del dato e' essa stessa
++ * un'informazione.
++ */
++class RecordService
++{
++    /** Prima edizione con i dati sui cartellini. */
++    public const PRIMO_ANNO_CARTELLINI = 1970;
++
++    /** Quota di presenze sotto la quale un portiere non entra in classifica. */
++    public const QUOTA_MINIMA_PORTIERE = 0.60;
++
++    public function perSquadraAnno(string $teamCode, string $tid): array
++    {
++        return $this->calcola($teamCode, [$tid], true);
++    }
++
++    public function perSquadra(string $teamCode): array
++    {
++        $tornei = DB::table('awc_team_appearances')
++            ->where('team_code', $teamCode)
++            ->distinct()->pluck('tournament_id')->all();
++
++        return $this->calcola($teamCode, $tornei, true);
++    }
++
++    public function perTorneo(string $tid): array
++    {
++        return $this->calcola(null, [$tid], false);
++    }
++
++    /* ------------------------------------------------------------------ */
++
++    /**
++     * @param  string|null  $teamCode  null = tutte le squadre del torneo
++     * @param  array        $tornei    elenco di tournament_id
++     * @param  bool         $conGoleador  false per l'ambito torneo
++     */
++    protected function calcola(?string $teamCode, array $tornei, bool $conGoleador): array
++    {
++        if (empty($tornei)) {
++            return ['vuoto' => true, 'voci' => []];
++        }
++
++        $partite = $this->partite($teamCode, $tornei);
++        if ($partite->isEmpty()) {
++            return ['vuoto' => true, 'voci' => []];
++        }
++
++        $matchIds = $partite->pluck('match_id')->all();
++        $nascite  = $this->dateDiNascita();
++
++        $voci = [];
++
++        /* --- eta' degli schierati ------------------------------------- */
++        $eta = $this->etaSchierati($matchIds, $teamCode, $nascite);
++
++        $voci[] = $this->voceEta('piu_vecchio', 'Giocatore più vecchio schierato',
++            $eta['max'] ?? null, $partite);
++        $voci[] = $this->voceEta('piu_giovane', 'Giocatore più giovane schierato',
++            $eta['min'] ?? null, $partite);
++
++        /* --- eta' media dei convocati --------------------------------- */
++        $voci[] = $this->etaMediaConvocati($teamCode, $tornei, $partite, $nascite);
++
++        /* --- eta' dei marcatori --------------------------------------- */
++        $etaGol = $this->etaMarcatori($matchIds, $teamCode, $nascite);
++
++        $voci[] = $this->voceEta('marcatore_vecchio', 'Marcatore più vecchio',
++            $etaGol['max'] ?? null, $partite);
++        $voci[] = $this->voceEta('marcatore_giovane', 'Marcatore più giovane',
++            $etaGol['min'] ?? null, $partite);
++
++        /* --- cartellini ----------------------------------------------- */
++        $primoAnno = min(array_map(fn ($t) => (int) substr($t, 3), $tornei));
++        $senzaDati = $primoAnno < self::PRIMO_ANNO_CARTELLINI;
++
++        $cart = $this->cartellini($matchIds, $teamCode);
++        $voci[] = $this->voceConteggio('ammoniti', 'Ammonizioni', $cart['gialli'],
++            $cart['dett_gialli'], $senzaDati);
++        $voci[] = $this->voceConteggio('espulsi', 'Espulsioni', $cart['rossi'],
++            $cart['dett_rossi'], $senzaDati);
++
++        /* --- rigori e autogol ----------------------------------------- */
++        $rig = $this->rigoriEAutogol($matchIds, $teamCode);
++
++        $voci[] = $this->voceConteggio('rigori_segnati', 'Rigori segnati',
++            $rig['rigori_pro'], $rig['dett_rigori_pro'], false);
++        $voci[] = $this->voceConteggio('rigori_subiti', 'Rigori subiti',
++            $rig['rigori_contro'], $rig['dett_rigori_contro'], false);
++        $voci[] = $this->voceConteggio('autogol_favore', 'Autogol a favore',
++            $rig['autogol_pro'], $rig['dett_autogol_pro'], false);
++        $voci[] = $this->voceConteggio('autogol_contro', 'Autogol commessi',
++            $rig['autogol_contro'], $rig['dett_autogol_contro'], false);
++
++        /* --- capocannonieri ------------------------------------------- */
++        if ($conGoleador) {
++            $voci[] = $this->goleador($matchIds, $teamCode);
++        }
++
++        /* --- portieri -------------------------------------------------- */
++        $voci[] = $this->portieri($matchIds, $teamCode, $partite);
++
++        return [
++            'vuoto'      => false,
++            'voci'       => array_values(array_filter($voci)),
++            'partite'    => $partite->count(),
++            'senza_dati' => $senzaDati,
++        ];
++    }
++
++    /* ------------------------------------------------------------------ */
++    /*  Sorgenti                                                           */
++    /* ------------------------------------------------------------------ */
++
++    /** Partite dell'ambito, indicizzate per match_id. */
++    protected function partite(?string $teamCode, array $tornei)
++    {
++        $q = DB::table('awc_matches')
++            ->select('match_id', 'match_date', 'match_name', 'stage_name',
++                'home_team_code', 'away_team_code', 'home_team_name',
++                'away_team_name', 'home_team_score', 'away_team_score',
++                'tournament_id')
++            ->whereIn('tournament_id', $tornei);
++
++        if ($teamCode !== null) {
++            $q->where(fn ($w) => $w->where('home_team_code', $teamCode)
++                ->orWhere('away_team_code', $teamCode));
++        }
++
++        return $q->orderBy('match_date')->get()->keyBy('match_id');
++    }
++
++    protected function dateDiNascita(): array
++    {
++        return DB::table('awc_players')
++            ->whereNotNull('birth_date')
++            ->pluck('birth_date', 'player_id')->all();
++    }
++
++    /* ------------------------------------------------------------------ */
++    /*  Calcoli                                                            */
++    /* ------------------------------------------------------------------ */
++
++    /** Estremi di eta' fra chi e' sceso in campo. */
++    protected function etaSchierati(array $matchIds, ?string $teamCode, array $nascite): array
++    {
++        $q = DB::table('awc_player_appearances')
++            ->select('player_id', 'family_name', 'given_name', 'match_id',
++                'match_date', 'team_code', 'team_name')
++            ->whereIn('match_id', $matchIds);
++
++        if ($teamCode !== null) {
++            $q->where('team_code', $teamCode);
++        }
++
++        return $this->estremiEta($q->get(), $nascite);
++    }
++
++    /** Estremi di eta' fra chi ha segnato (autogol esclusi). */
++    protected function etaMarcatori(array $matchIds, ?string $teamCode, array $nascite): array
++    {
++        $q = DB::table('awc_goals')
++            ->select('player_id', 'family_name', 'given_name', 'match_id',
++                'match_date', 'player_team_code as team_code',
++                'player_team_name as team_name')
++            ->whereIn('match_id', $matchIds)
++            ->where('own_goal', 0);
++
++        if ($teamCode !== null) {
++            $q->where('player_team_code', $teamCode);
++        }
++
++        return $this->estremiEta($q->get(), $nascite);
++    }
++
++    /** Scorre le righe e tiene il piu' vecchio e il piu' giovane. */
++    protected function estremiEta($righe, array $nascite): array
++    {
++        $max = $min = null;
++
++        foreach ($righe as $r) {
++            $nascita = $nascite[$r->player_id] ?? null;
++            if (! $nascita || ! $r->match_date) {
++                continue;
++            }
++            $giorni = $this->giorniFra($nascita, $r->match_date);
++            if ($giorni === null || $giorni <= 0) {
++                continue;
++            }
++            $voce = [
++                'player_id' => $r->player_id,
++                'nome'      => trim(($r->given_name ?? '') . ' ' . ($r->family_name ?? '')),
++                'match_id'  => $r->match_id,
++                'data'      => $r->match_date,
++                'team_code' => $r->team_code ?? null,
++                'team_name' => $r->team_name ?? null,
++                'giorni'    => $giorni,
++            ];
++            if ($max === null || $giorni > $max['giorni']) {
++                $max = $voce;
++            }
++            if ($min === null || $giorni < $min['giorni']) {
++                $min = $voce;
++            }
++        }
++
++        return ['max' => $max, 'min' => $min];
++    }
++
++    /**
++     * Eta' media dei convocati, riferita alla prima partita della squadra
++     * in ciascuna edizione. Con piu' edizioni la media e' complessiva.
++     */
++    protected function etaMediaConvocati(?string $teamCode, array $tornei, $partite, array $nascite): array
++    {
++        $q = DB::table('awc_squads')
++            ->select('player_id', 'tournament_id', 'team_code')
++            ->whereIn('tournament_id', $tornei);
++
++        if ($teamCode !== null) {
++            $q->where('team_code', $teamCode);
++        }
++
++        // Data di riferimento: prima partita disputata in quell'edizione.
++        $riferimento = [];
++        foreach ($partite as $p) {
++            if (! isset($riferimento[$p->tournament_id])) {
++                $riferimento[$p->tournament_id] = $p->match_date;
++            }
++        }
++
++        $somma = 0;
++        $n = 0;
++        foreach ($q->get() as $r) {
++            $nascita = $nascite[$r->player_id] ?? null;
++            $data    = $riferimento[$r->tournament_id] ?? null;
++            if (! $nascita || ! $data) {
++                continue;
++            }
++            $giorni = $this->giorniFra($nascita, $data);
++            if ($giorni === null || $giorni <= 0) {
++                continue;
++            }
++            $somma += $giorni;
++            $n++;
++        }
++
++        if ($n === 0) {
++            return [
++                'chiave'    => 'eta_media',
++                'etichetta' => 'Età media dei convocati',
++                'valore'    => null,
++                'nota'      => 'Dato non disponibile',
++            ];
++        }
++
++        $media = (int) round($somma / $n);
++
++        return [
++            'chiave'    => 'eta_media',
++            'etichetta' => 'Età media dei convocati',
++            'valore'    => $this->formattaEta($media),
++            'nota'      => $n . ' convocati, età alla prima partita',
++        ];
++    }
++
++    protected function cartellini(array $matchIds, ?string $teamCode): array
++    {
++        $q = DB::table('awc_bookings')
++            ->select('family_name', 'given_name', 'match_id', 'yellow_card',
++                'red_card', 'second_yellow_card', 'sending_off')
++            ->whereIn('match_id', $matchIds);
++
++        if ($teamCode !== null) {
++            $q->where('team_code', $teamCode);
++        }
++
++        $righe  = $q->get();
++        $gialli = $rossi = 0;
++        $dg = $dr = [];
++
++        foreach ($righe as $r) {
++            $nome = trim(($r->given_name ?? '') . ' ' . ($r->family_name ?? ''));
++            if ($r->yellow_card) {
++                $gialli++;
++                $dg[] = ['nome' => $nome, 'match_id' => $r->match_id];
++            }
++            // Un'espulsione e' tale sia per rosso diretto sia per doppia
++            // ammonizione: sending_off copre entrambi i casi.
++            if ($r->sending_off || $r->red_card || $r->second_yellow_card) {
++                $rossi++;
++                $dr[] = ['nome' => $nome, 'match_id' => $r->match_id];
++            }
++        }
++
++        return ['gialli' => $gialli, 'rossi' => $rossi,
++            'dett_gialli' => $dg, 'dett_rossi' => $dr];
++    }
++
++    protected function rigoriEAutogol(array $matchIds, ?string $teamCode): array
++    {
++        $righe = DB::table('awc_goals')
++            ->select('family_name', 'given_name', 'match_id', 'team_code',
++                'player_team_code', 'own_goal', 'penalty')
++            ->whereIn('match_id', $matchIds)
++            ->where(fn ($w) => $w->where('penalty', 1)->orWhere('own_goal', 1))
++            ->get();
++
++        $out = ['rigori_pro' => 0, 'rigori_contro' => 0,
++            'autogol_pro' => 0, 'autogol_contro' => 0,
++            'dett_rigori_pro' => [], 'dett_rigori_contro' => [],
++            'dett_autogol_pro' => [], 'dett_autogol_contro' => []];
++
++        foreach ($righe as $r) {
++            $nome = trim(($r->given_name ?? '') . ' ' . ($r->family_name ?? ''));
++            $d = ['nome' => $nome, 'match_id' => $r->match_id];
++
++            // team_code indica chi beneficia della rete,
++            // player_team_code la squadra di chi l'ha realizzata.
++            $aFavore = $teamCode === null || $r->team_code === $teamCode;
++            $miei    = $teamCode === null || $r->player_team_code === $teamCode;
++
++            if ($r->penalty) {
++                if ($aFavore) {
++                    $out['rigori_pro']++;
++                    $out['dett_rigori_pro'][] = $d;
++                } else {
++                    $out['rigori_contro']++;
++                    $out['dett_rigori_contro'][] = $d;
++                }
++            }
++            if ($r->own_goal) {
++                if ($miei) {
++                    $out['autogol_contro']++;
++                    $out['dett_autogol_contro'][] = $d;
++                } else {
++                    $out['autogol_pro']++;
++                    $out['dett_autogol_pro'][] = $d;
++                }
++            }
++        }
++
++        return $out;
++    }
++
++    /** I tre giocatori con piu' reti (autogol esclusi). */
++    protected function goleador(array $matchIds, ?string $teamCode): array
++    {
++        $q = DB::table('awc_goals')
++            ->select('player_id', 'family_name', 'given_name',
++                DB::raw('COUNT(*) as reti'))
++            ->whereIn('match_id', $matchIds)
++            ->where('own_goal', 0)
++            ->groupBy('player_id', 'family_name', 'given_name')
++            ->orderByDesc('reti')
++            ->limit(10);
++
++        if ($teamCode !== null) {
++            $q->where('player_team_code', $teamCode);
++        }
++
++        $righe = $q->get();
++        if ($righe->isEmpty()) {
++            return [
++                'chiave'    => 'goleador',
++                'etichetta' => 'Migliori marcatori',
++                'valore'    => null,
++                'nota'      => 'Nessuna rete',
++            ];
++        }
++
++        // Si tengono i primi tre piazzamenti: a parita' di reti entrano
++        // tutti, quindi la lista puo' superare i tre nomi.
++        $sogliaReti = $righe->pluck('reti')->unique()->take(3)->last();
++
++        $lista = $righe->filter(fn ($r) => $r->reti >= $sogliaReti)
++            ->map(fn ($r) => [
++                'player_id' => $r->player_id,
++                'nome'      => trim(($r->given_name ?? '') . ' ' . ($r->family_name ?? '')),
++                'reti'      => (int) $r->reti,
++            ])->values()->all();
++
++        return [
++            'chiave'    => 'goleador',
++            'etichetta' => 'Migliori marcatori',
++            'valore'    => $lista[0]['reti'] . ($lista[0]['reti'] == 1 ? ' rete' : ' reti'),
++            'classifica' => $lista,
++        ];
++    }
++
++    /**
++     * Portiere con la media di reti subite piu' bassa.
++     *
++     * Entra in classifica solo chi ha giocato almeno il 60% delle partite
++     * dell'ambito. Se nessuno raggiunge quella quota, si mostrano tutti i
++     * portieri con la rispettiva media, senza proclamare un migliore.
++     */
++    protected function portieri(array $matchIds, ?string $teamCode, $partite): array
++    {
++        $q = DB::table('awc_player_appearances')
++            ->select('player_id', 'family_name', 'given_name', 'match_id', 'team_code')
++            ->whereIn('match_id', $matchIds)
++            ->where('position_code', 'GK');
++
++        if ($teamCode !== null) {
++            $q->where('team_code', $teamCode);
++        }
++
++        $righe = $q->get();
++        if ($righe->isEmpty()) {
++            return [
++                'chiave'    => 'portiere',
++                'etichetta' => 'Miglior portiere',
++                'valore'    => null,
++                'nota'      => 'Dato non disponibile',
++            ];
++        }
++
++        // Reti incassate in ogni partita, dal punto di vista della squadra.
++        $subiti = [];
++        foreach ($partite as $p) {
++            if ($teamCode !== null) {
++                $subiti[$p->match_id] = $p->home_team_code === $teamCode
++                    ? (int) $p->away_team_score
++                    : (int) $p->home_team_score;
++            }
++        }
++
++        $agg = [];
++        foreach ($righe as $r) {
++            $k = $r->player_id;
++            if (! isset($agg[$k])) {
++                $agg[$k] = [
++                    'player_id' => $r->player_id,
++                    'nome'      => trim(($r->given_name ?? '') . ' ' . ($r->family_name ?? '')),
++                    'partite'   => 0,
++                    'subiti'    => 0,
++                ];
++            }
++            $agg[$k]['partite']++;
++
++            if ($teamCode !== null) {
++                $agg[$k]['subiti'] += $subiti[$r->match_id] ?? 0;
++            } else {
++                // Ambito torneo: si guarda la squadra del portiere.
++                $p = $partite[$r->match_id] ?? null;
++                if ($p) {
++                    $agg[$k]['subiti'] += $p->home_team_code === $r->team_code
++                        ? (int) $p->away_team_score
++                        : (int) $p->home_team_score;
++                }
++            }
++        }
++
++        $totPartite = $partite->count();
++        $soglia     = max(1, (int) ceil($totPartite * self::QUOTA_MINIMA_PORTIERE));
++
++        foreach ($agg as &$a) {
++            $a['media'] = $a['partite'] > 0
++                ? round($a['subiti'] / $a['partite'], 2)
++                : null;
++        }
++        unset($a);
++
++        $ammessi = array_filter($agg, fn ($a) => $a['partite'] >= $soglia);
++
++        if (! empty($ammessi)) {
++            usort($ammessi, fn ($x, $y) => $x['media'] <=> $y['media']);
++            $primo = $ammessi[0];
++
++            return [
++                'chiave'     => 'portiere',
++                'etichetta'  => 'Miglior portiere',
++                'valore'     => number_format($primo['media'], 2, ',', '') . ' reti a partita',
++                'nome'       => $primo['nome'],
++                'player_id'  => $primo['player_id'],
++                'nota'       => $primo['partite'] . ' partite su ' . $totPartite,
++                'classifica' => array_slice($ammessi, 0, 5),
++            ];
++        }
++
++        // Nessuno raggiunge la quota: si elencano tutti.
++        $tutti = array_values($agg);
++        usort($tutti, fn ($x, $y) => $x['media'] <=> $y['media']);
++
++        return [
++            'chiave'     => 'portiere',
++            'etichetta'  => 'Portieri impiegati',
++            'valore'     => null,
++            'nota'       => 'Nessun portiere ha giocato almeno il '
++                            . (int) (self::QUOTA_MINIMA_PORTIERE * 100)
++                            . '% delle partite: media di ciascuno',
++            'classifica' => $tutti,
++        ];
++    }
++
++    /* ------------------------------------------------------------------ */
++    /*  Aiutanti                                                           */
++    /* ------------------------------------------------------------------ */
++
++    protected function giorniFra(?string $nascita, ?string $data): ?int
++    {
++        if (! $nascita || ! $data) {
++            return null;
++        }
++        try {
++            $a = new \DateTimeImmutable(substr($nascita, 0, 10));
++            $b = new \DateTimeImmutable(substr($data, 0, 10));
++        } catch (\Exception $e) {
++            return null;
++        }
++
++        return (int) $a->diff($b)->days * ($b < $a ? -1 : 1);
++    }
++
++    /**
++     * Da giorni ad "anni e giorni", come si usa per i primati sportivi.
++     *
++     * La conversione passa da una data reale e non da una divisione per
++     * 365: con gli anni bisestili la scorciatoia sfalsa il conteggio di
++     * una decina di giorni, e su un primato e' una differenza che si
++     * nota. Zoff nella finale del 1982 aveva 40 anni e 133 giorni, non
++     * 143.
++     */
++    protected function formattaEta(int $giorni): string
++    {
++        // Si ricostruisce una nascita fittizia a ritroso da oggi, cosi'
++        // il conteggio degli anni tiene conto dei bisestili attraversati.
++        $fine   = new \DateTimeImmutable('2000-01-01');
++        $inizio = $fine->modify('-' . $giorni . ' days');
++        $d      = $inizio->diff($fine);
++
++        $anni = $d->y;
++        $dopoCompleanno = $inizio->modify('+' . $anni . ' years');
++        $residuo = (int) $dopoCompleanno->diff($fine)->days;
++
++        return $anni . ' anni e ' . $residuo . ' giorni';
++    }
++
++    protected function voceEta(string $chiave, string $etichetta, ?array $dato, $partite): array
++    {
++        if (! $dato) {
++            return [
++                'chiave'    => $chiave,
++                'etichetta' => $etichetta,
++                'valore'    => null,
++                'nota'      => 'Dato non disponibile',
++            ];
++        }
++
++        $p = $partite[$dato['match_id']] ?? null;
++
++        return [
++            'chiave'    => $chiave,
++            'etichetta' => $etichetta,
++            'valore'    => $this->formattaEta($dato['giorni']),
++            'nome'      => $dato['nome'],
++            'player_id' => $dato['player_id'],
++            'team_name' => $dato['team_name'] ?? null,
++            'match_id'  => $dato['match_id'],
++            'partita'   => $p ? $this->descriviPartita($p) : null,
++            'data'      => $dato['data'],
++        ];
++    }
++
++    protected function voceConteggio(string $chiave, string $etichetta, int $n, array $dettaglio, bool $senzaDati): array
++    {
++        $voce = [
++            'chiave'    => $chiave,
++            'etichetta' => $etichetta,
++            'valore'    => $n,
++            'dettaglio' => array_slice($dettaglio, 0, 12),
++            'altri'     => max(0, count($dettaglio) - 12),
++        ];
++
++        if ($n === 0 && $senzaDati) {
++            $voce['nota'] = 'Non registrato prima del ' . self::PRIMO_ANNO_CARTELLINI;
++        }
++
++        return $voce;
++    }
++
++    protected function descriviPartita($p): string
++    {
++        return trim(($p->home_team_name ?? '') . ' ' . (int) $p->home_team_score
++            . '-' . (int) $p->away_team_score . ' ' . ($p->away_team_name ?? ''));
++    }
++}
+diff --git a/resources/views/partials/record.blade.php b/resources/views/partials/record.blade.php
+new file mode 100644
+index 0000000..4111a9c
+--- /dev/null
++++ b/resources/views/partials/record.blade.php
+@@ -0,0 +1,134 @@
++@php
++    /**
++     * Tab Record. Riceve $rec dal RecordService e, opzionalmente,
++     * $recTitolo per l'intestazione.
++     */
++    $voci = $rec['voci'] ?? [];
++@endphp
++
++@if (($rec['vuoto'] ?? true) || empty($voci))
++    <p>Nessun dato disponibile.</p>
++@else
++
++    @if ($rec['senza_dati'] ?? false)
++        <p class="rec-avviso">
++            Cartellini e sostituzioni sono registrati soltanto dal 1970 in poi:
++            per le edizioni precedenti i primati relativi restano a zero.
++        </p>
++    @endif
++
++    <div class="rec-griglia">
++        @foreach ($voci as $v)
++            <div class="rec-card rec-{{ $v['chiave'] }}">
++                <div class="rec-tit">{{ $v['etichetta'] }}</div>
++
++                {{-- Valore principale --}}
++                @if (!is_null($v['valore'] ?? null))
++                    <div class="rec-val">{{ $v['valore'] }}</div>
++                @elseif (!empty($v['classifica']))
++                    {{-- niente valore singolo: parla la classifica --}}
++                @else
++                    <div class="rec-val rec-vuoto">—</div>
++                @endif
++
++                {{-- Protagonista, con collegamento alla scheda --}}
++                @if (!empty($v['nome']))
++                    <div class="rec-chi">
++                        @if (!empty($v['player_id']))
++                            <a href="{{ route('giocatore.show', $v['player_id']) }}">{{ $v['nome'] }}</a>
++                        @else
++                            {{ $v['nome'] }}
++                        @endif
++                        @if (!empty($v['team_name']))
++                            <span class="rec-sq">{{ $v['team_name'] }}</span>
++                        @endif
++                    </div>
++                @endif
++
++                {{-- Partita in cui il primato e' stato stabilito --}}
++                @if (!empty($v['match_id']))
++                    <a class="rec-partita" href="{{ route('partita.show', $v['match_id']) }}">
++                        {{ $v['partita'] ?? $v['match_id'] }}
++                        @if (!empty($v['data']))
++                            <span class="rec-data">{{ \Carbon\Carbon::parse($v['data'])->format('d/m/Y') }}</span>
++                        @endif
++                    </a>
++                @endif
++
++                {{-- Classifica (marcatori, portieri) --}}
++                @if (!empty($v['classifica']))
++                    <ol class="rec-classifica">
++                        @foreach ($v['classifica'] as $c)
++                            <li>
++                                @if (!empty($c['player_id']))
++                                    <a href="{{ route('giocatore.show', $c['player_id']) }}">{{ $c['nome'] }}</a>
++                                @else
++                                    <span>{{ $c['nome'] }}</span>
++                                @endif
++                                <b>
++                                    @if (isset($c['reti']))
++                                        {{ $c['reti'] }}
++                                    @elseif (isset($c['media']))
++                                        {{ number_format($c['media'], 2, ',', '') }}
++                                        <span class="rec-sq">({{ $c['partite'] }}p)</span>
++                                    @endif
++                                </b>
++                            </li>
++                        @endforeach
++                    </ol>
++                @endif
++
++                {{-- Elenco degli episodi: ammonizioni, rigori, autogol --}}
++                @if (!empty($v['dettaglio']))
++                    <ul class="rec-episodi">
++                        @foreach ($v['dettaglio'] as $d)
++                            <li>
++                                <a href="{{ route('partita.show', $d['match_id']) }}">{{ $d['nome'] }}</a>
++                            </li>
++                        @endforeach
++                        @if (!empty($v['altri']))
++                            <li class="rec-altri">e altri {{ $v['altri'] }}</li>
++                        @endif
++                    </ul>
++                @endif
++
++                @if (!empty($v['nota']))
++                    <div class="rec-nota">{{ $v['nota'] }}</div>
++                @endif
++            </div>
++        @endforeach
++    </div>
++
++    <style>
++        .rec-avviso{background:#fffbe6;border:1px solid #f0e0a0;border-radius:8px;
++            padding:10px 14px;margin:0 0 16px;font-size:13px;color:#6b5b16;}
++        /* minmax(0,...) e' necessario: senza, i nomi lunghi allargano la
++           colonna e la griglia sborda dal contenitore in responsive. */
++        .rec-griglia{display:grid;gap:12px;
++            grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));}
++        .rec-card{background:#f4f6f5;border:1px solid var(--line);border-radius:10px;
++            padding:14px;min-width:0;overflow-wrap:anywhere;}
++        .rec-tit{font-size:11px;text-transform:uppercase;letter-spacing:.6px;
++            color:var(--muted);margin-bottom:6px;}
++        .rec-val{font-size:20px;font-weight:800;color:var(--ink);line-height:1.25;}
++        .rec-val.rec-vuoto{color:#b9c2bd;font-weight:600;}
++        .rec-chi{margin-top:4px;font-size:14px;font-weight:600;}
++        .rec-chi a{color:var(--accent);text-decoration:none;}
++        .rec-chi a:hover{text-decoration:underline;}
++        .rec-sq{font-weight:400;color:var(--muted);font-size:12px;}
++        .rec-partita{display:block;margin-top:8px;font-size:12px;color:var(--muted);
++            text-decoration:none;border-top:1px dotted var(--line);padding-top:7px;}
++        .rec-partita:hover{color:var(--accent);}
++        .rec-data{display:block;font-size:11px;opacity:.8;}
++        .rec-classifica{margin:8px 0 0;padding-left:20px;font-size:13px;}
++        .rec-classifica li{margin:3px 0;}
++        .rec-classifica a{color:var(--accent);text-decoration:none;}
++        .rec-classifica b{float:right;}
++        .rec-episodi{list-style:none;margin:8px 0 0;padding:0;font-size:12px;
++            display:flex;flex-wrap:wrap;gap:4px 8px;}
++        .rec-episodi a{color:var(--muted);text-decoration:none;}
++        .rec-episodi a:hover{color:var(--accent);text-decoration:underline;}
++        .rec-altri{color:#b9c2bd;}
++        .rec-nota{margin-top:8px;font-size:11px;color:var(--muted);}
++    </style>
++@endif
+diff --git a/resources/views/squadra/show.blade.php b/resources/views/squadra/show.blade.php
+index aaad142..d19be10 100644
+--- a/resources/views/squadra/show.blade.php
++++ b/resources/views/squadra/show.blade.php
+@@ -15,6 +15,7 @@
+         <button class="tab-btn"        data-section="managers"  title="Managers"  aria-label="Managers">{!! \App\Support\Icons::svg('strategy') !!}</button>
+         <button class="tab-btn"        data-section="maglie"    title="Maglie"    aria-label="Maglie">@include('partials.icona-maglia')</button>
+         <button class="tab-btn"        data-section="risultati" title="Risultati" aria-label="Risultati">{!! \App\Support\Icons::svg('chart') !!}</button>
++        <button class="tab-btn"        data-section="record"    title="Record"    aria-label="Record">{!! \App\Support\Icons::svg('trophy-2') !!}</button>
+     </div>
+ 
+     <div id="tab-content" class="luce-bordo">Caricamento…</div>
+diff --git a/routes/web.php b/routes/web.php
+index 7379132..0dce163 100644
+--- a/routes/web.php
++++ b/routes/web.php
+@@ -46,6 +46,7 @@
+ Route::get('/squadra/{code}/presenze', [SquadraController::class, 'presenze'])->name('squadra.presenze');
+ 
+ Route::get('/squadra/{code}/risultati', [SquadraController::class, 'risultati'])->name('squadra.risultati');
++Route::get('/squadra/{code}/record', [SquadraController::class, 'record'])->name('squadra.record');
+ 
+ Route::get('/squadra/{code}/giocatori', [SquadraController::class, 'giocatori'])->name('squadra.giocatori');
+ 
+-- 
+2.43.0
+

@@ -1,0 +1,253 @@
+From f7089401dd4c43afbbd74b994a2d0c9aad6466ad Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 14 Aug 2026 11:52:46 +0000
+Subject: [PATCH] Strumento per normalizzare gli stemmi dei club
+
+Converte immagini in qualsiasi formato comune (PNG, JPG, WEBP, GIF, BMP,
+TIFF), con sfondo bianco o gia' trasparente, in PNG quadrati da 64 pixel
+di lato pronti per la cartella resources/images/clubs.
+
+Lo sfondo bianco viene rimosso partendo dai bordi e propagandosi solo sui
+pixel chiari collegati al perimetro: le parti bianche interne allo stemma
+non vengono bucate. I pixel di contorno a meta' strada fra stemma e
+sfondo diventano semitrasparenti, per evitare l'alone dei ritagli netti.
+
+Dopo il ritaglio dei margini vuoti l'immagine viene ridimensionata
+mantenendo le proporzioni e centrata su tela quadrata trasparente: chi e'
+largo riceve margini sopra e sotto, chi e' stretto a destra e sinistra.
+Nessuna deformazione.
+
+La misura 64 nasce dalla resa a video: gli stemmi appaiono a 16 e 18
+pixel, quindi 64 copre abbondantemente gli schermi ad alta densita'
+senza appesantire il repository.
+---
+ tools/prepara_loghi_club.py | 217 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 217 insertions(+)
+ create mode 100644 tools/prepara_loghi_club.py
+
+diff --git a/tools/prepara_loghi_club.py b/tools/prepara_loghi_club.py
+new file mode 100644
+index 0000000..c9e03f7
+--- /dev/null
++++ b/tools/prepara_loghi_club.py
+@@ -0,0 +1,217 @@
++# -*- coding: utf-8 -*-
++"""Prepara gli stemmi dei club per il sito.
++
++Prende immagini in qualsiasi formato comune (PNG, JPG, WEBP, GIF, BMP,
++TIFF), con sfondo bianco oppure gia' trasparente, e produce PNG quadrati
++da 64 pixel di lato con lo sfondo rimosso e lo stemma centrato.
++
++Cosa fa, nell'ordine
++--------------------
++1. Rimuove lo sfondo bianco, se presente. Non e' una sostituzione
++   globale del colore: si parte dai quattro bordi e si propaga solo sui
++   pixel chiari collegati al perimetro. Cosi' le parti bianche interne
++   allo stemma (campiture, scritte, bordature) restano intatte.
++2. Ammorbidisce il contorno: i pixel di bordo rimasti a meta' strada fra
++   stemma e sfondo diventano semitrasparenti, invece di lasciare l'alone
++   chiaro tipico dei ritagli netti.
++3. Ritaglia i margini vuoti, cosi' lo stemma occupa tutto lo spazio utile
++   a prescindere da quanto bordo aveva l'originale.
++4. Ridimensiona mantenendo le proporzioni e centra su una tela quadrata
++   trasparente: le immagini larghe ricevono spazio sopra e sotto, quelle
++   strette a destra e a sinistra. Lo stemma non viene mai deformato.
++
++Uso
++---
++    py prepara_loghi_club.py
++    py prepara_loghi_club.py cartella_ingresso cartella_uscita
++    py prepara_loghi_club.py cartella_ingresso cartella_uscita 128
++
++Il terzo parametro e' il lato in pixel, se serve una misura diversa da 64.
++
++Il nome del file viene mantenuto, cambia solo l'estensione in .png:
++percio' conviene rinominare gli originali con l'identificativo del club
++(C-631.jpg diventa C-631.png) prima o dopo la conversione, indifferente.
++
++Serve Pillow:  py -m pip install Pillow
++"""
++import os
++import sys
++from collections import deque
++
++from PIL import Image
++
++# Valori predefiniti, sovrascrivibili da riga di comando.
++INGRESSO_DEFAULT = 'loghi_da_convertire'
++USCITA_DEFAULT = os.path.join('resources', 'images', 'clubs')
++LATO_DEFAULT = 64
++
++ESTENSIONI = ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.tif', '.tiff')
++
++# Un pixel e' sfondo se e' molto chiaro e non ha dominanti di colore.
++# La soglia e' bassa apposta: i JPEG sporcano il bianco e un 255 secco
++# lascerebbe una cornice grigiastra tutto attorno.
++SOGLIA_PIENA = 234      # sotto questa luminosita' il pixel e' stemma
++SOGLIA_MORBIDA = 200    # fra le due soglie il pixel diventa semitrasparente
++MAX_DIFFERENZA_CANALI = 26   # scarto massimo fra R, G e B perche' sia "grigio"
++
++
++def e_chiaro(p, soglia):
++    """Vero se il pixel e' chiaro e neutro, cioe' plausibilmente sfondo."""
++    r, g, b = p[0], p[1], p[2]
++    if max(r, g, b) - min(r, g, b) > MAX_DIFFERENZA_CANALI:
++        return False
++    return (r + g + b) / 3 >= soglia
++
++
++def rimuovi_sfondo(im):
++    """Rende trasparente lo sfondo chiaro collegato ai bordi.
++
++    Restituisce l'immagine e il numero di pixel resi trasparenti."""
++    larghezza, altezza = im.size
++    px = im.load()
++
++    visto = bytearray(larghezza * altezza)
++    coda = deque()
++
++    def accoda(x, y):
++        i = y * larghezza + x
++        if visto[i]:
++            return
++        p = px[x, y]
++        if p[3] == 0 or e_chiaro(p, SOGLIA_MORBIDA):
++            visto[i] = 1
++            coda.append((x, y))
++
++    for x in range(larghezza):
++        accoda(x, 0)
++        accoda(x, altezza - 1)
++    for y in range(altezza):
++        accoda(0, y)
++        accoda(larghezza - 1, y)
++
++    while coda:
++        x, y = coda.popleft()
++        if x > 0:
++            accoda(x - 1, y)
++        if x < larghezza - 1:
++            accoda(x + 1, y)
++        if y > 0:
++            accoda(x, y - 1)
++        if y < altezza - 1:
++            accoda(x, y + 1)
++
++    tolti = 0
++    for y in range(altezza):
++        riga = y * larghezza
++        for x in range(larghezza):
++            if not visto[riga + x]:
++                continue
++            r, g, b, a = px[x, y]
++            if a == 0:
++                continue
++            luminosita = (r + g + b) / 3
++            if luminosita >= SOGLIA_PIENA:
++                # Sfondo pieno: via del tutto.
++                px[x, y] = (r, g, b, 0)
++                tolti += 1
++            else:
++                # Zona di passaggio fra stemma e sfondo: trasparenza
++                # proporzionale, cosi' il contorno resta morbido.
++                quota = (luminosita - SOGLIA_MORBIDA) / (SOGLIA_PIENA - SOGLIA_MORBIDA)
++                quota = min(1.0, max(0.0, quota))
++                px[x, y] = (r, g, b, int(round(a * (1.0 - quota))))
++    return tolti
++
++
++def ha_gia_trasparenza(im):
++    """Vero se l'immagine porta gia' un canale alfa utilizzato davvero."""
++    if im.mode != 'RGBA':
++        return False
++    alfa = im.getchannel('A')
++    minimo, _ = alfa.getextrema()
++    if minimo > 8:
++        return False
++    trasparenti = sum(1 for v in alfa.getdata() if v < 8)
++    return trasparenti > (im.size[0] * im.size[1]) * 0.02
++
++
++def elabora(percorso_ingresso, percorso_uscita, lato):
++    im = Image.open(percorso_ingresso)
++
++    # Le GIF animate e i formati a tavolozza vanno normalizzati prima:
++    # si prende il primo fotogramma e si passa a RGBA.
++    if getattr(im, 'is_animated', False):
++        im.seek(0)
++    im = im.convert('RGBA')
++
++    if ha_gia_trasparenza(im):
++        nota = 'sfondo gia\' trasparente'
++    else:
++        tolti = rimuovi_sfondo(im)
++        if tolti == 0:
++            nota = 'nessuno sfondo chiaro sui bordi, lasciata intera'
++        else:
++            nota = '%d pixel di sfondo rimossi' % tolti
++
++    # Ritaglio dei margini vuoti.
++    riquadro = im.getbbox()
++    if riquadro:
++        im = im.crop(riquadro)
++    if im.size[0] == 0 or im.size[1] == 0:
++        return 'saltata: immagine vuota dopo il ritaglio'
++
++    # Ridimensionamento proporzionale: il lato piu' lungo arriva a misura,
++    # l'altro resta corto e verra' compensato dai margini.
++    larghezza, altezza = im.size
++    fattore = lato / float(max(larghezza, altezza))
++    nuova = (max(1, int(round(larghezza * fattore))),
++             max(1, int(round(altezza * fattore))))
++    im = im.resize(nuova, Image.LANCZOS)
++
++    # Tela quadrata trasparente con lo stemma al centro.
++    tela = Image.new('RGBA', (lato, lato), (0, 0, 0, 0))
++    tela.paste(im,
++               ((lato - nuova[0]) // 2, (lato - nuova[1]) // 2))
++    tela.save(percorso_uscita, 'PNG', optimize=True)
++
++    return 'ok (%dx%d -> %dx%d, %s)' % (larghezza, altezza, lato, lato, nota)
++
++
++def main():
++    ingresso = sys.argv[1] if len(sys.argv) > 1 else INGRESSO_DEFAULT
++    uscita = sys.argv[2] if len(sys.argv) > 2 else USCITA_DEFAULT
++    lato = int(sys.argv[3]) if len(sys.argv) > 3 else LATO_DEFAULT
++
++    if not os.path.isdir(ingresso):
++        print('Cartella di ingresso non trovata:', ingresso)
++        print('Creala, mettici dentro le immagini e rilancia.')
++        return 1
++
++    if not os.path.isdir(uscita):
++        os.makedirs(uscita)
++        print('Creata la cartella di uscita:', uscita)
++
++    fatti = falliti = 0
++    for nome in sorted(os.listdir(ingresso)):
++        if not nome.lower().endswith(ESTENSIONI):
++            continue
++        origine = os.path.join(ingresso, nome)
++        destinazione = os.path.join(uscita, os.path.splitext(nome)[0] + '.png')
++        try:
++            esito = elabora(origine, destinazione, lato)
++        except Exception as errore:                      # noqa: BLE001
++            esito = 'ERRORE: %s' % errore
++        if esito.startswith('ok'):
++            fatti += 1
++        else:
++            falliti += 1
++        print('%-34s %s' % (nome, esito))
++
++    print('---')
++    print('Convertiti: %d   non riusciti: %d' % (fatti, falliti))
++    print('Destinazione:', os.path.abspath(uscita))
++    return 0
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+-- 
+2.43.0
+

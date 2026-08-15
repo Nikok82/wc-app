@@ -1,0 +1,406 @@
+From 162ed78d9d20ed6edc8c0f992b5258ebf6a75cbb Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 14 Aug 2026 13:08:41 +0000
+Subject: [PATCH] Fase 3: navigazione fra schede, club nella scheda giocatore
+
+Barra bottoni
+- WcService::vicini() trova la voce precedente e successiva in un
+  elenco ordinato, con due sole query a prescindere da quante colonne
+  compongono l'ordinamento. L'identificativo entra nella tupla di
+  confronto come ultimo elemento: senza, due omonimi si escluderebbero
+  a vicenda e la navigazione salterebbe una scheda. MariaDB accetta le
+  tuple nel confronto ma non nell'ordinamento, quindi l'ORDER BY resta
+  scritto colonna per colonna.
+- Stadi, arbitri, allenatori e giocatori hanno ora le frecce
+  precedente/successiva, in ordine alfabetico: lo stesso dell'elenco da
+  cui si arriva, cosi' le frecce portano dove ci si aspetta.
+- La pagina squadra-anno salta fra le partecipazioni della stessa
+  nazionale, con la bandiera dell'epoca come miniatura.
+- Le miniature sono tonde, come gia' per le squadre.
+
+Scheda giocatore
+- Nuova riga Club: un club per Mondiale disputato, con lo stemma
+  accanto al nome. Gli stemmi passano da logoClubUrl(), quindi
+  funzionano sia con gli indirizzi esterni residui sia con i file
+  locali.
+- I nomi lunghi non allargano la riga oltre il contenitore: ogni voce
+  e' un blocco a se' che va a capo per intero, invece di spezzarsi.
+---
+ app/Http/Controllers/AllenatoreController.php | 29 ++++++++-
+ app/Http/Controllers/ArbitroController.php    | 29 ++++++++-
+ app/Http/Controllers/GiocatoreController.php  | 56 ++++++++++++++++-
+ .../Controllers/SquadraAnnoController.php     | 15 +++++
+ app/Http/Controllers/StadioController.php     | 29 ++++++++-
+ app/Services/WcService.php                    | 60 +++++++++++++++++++
+ resources/views/giocatore/scheda.blade.php    | 28 +++++++++
+ 7 files changed, 242 insertions(+), 4 deletions(-)
+
+diff --git a/app/Http/Controllers/AllenatoreController.php b/app/Http/Controllers/AllenatoreController.php
+index fa0159e..2ec9e10 100644
+--- a/app/Http/Controllers/AllenatoreController.php
++++ b/app/Http/Controllers/AllenatoreController.php
+@@ -57,7 +57,8 @@ public function index(Request $request)
+     /** Pagina completa della scheda allenatore. */
+     public function show(string $id)
+     {
+-        return view('allenatore.show', $this->datiScheda($id));
++        return view('allenatore.show',
++            array_merge($this->datiScheda($id), $this->navigazione($id)));
+     }
+ 
+     /** Solo il frammento scheda (usato dal popup degli elenchi). */
+@@ -68,6 +69,32 @@ public function scheda(string $id)
+ 
+     /* ------------------------------------------------------------------ */
+ 
++    /**
++     * Barra bottoni: scheda precedente e successiva in ordine alfabetico,
++     * lo stesso dell'elenco da cui si arriva.
++     */
++    protected function navigazione(string $id): array
++    {
++        [$prev, $next] = $this->wc->vicini(
++            'awc_managers', 'manager_id', ['family_name', 'given_name'], $id
++        );
++
++        $voce = function ($v) {
++            if (! $v) {
++                return null;
++            }
++
++            return [
++                'url'   => route('allenatore.show', $v->manager_id),
++                'img'   => $this->wc->bandieraUrl($v->country_name, null),
++                'forma' => 'tonda',
++                'label' => trim($v->given_name.' '.$v->family_name),
++            ];
++        };
++
++        return ['barraPrev' => $voce($prev), 'barraNext' => $voce($next)];
++    }
++
+     protected function datiScheda(string $id): array
+     {
+         $m = Manager::where('manager_id', $id)->first();
+diff --git a/app/Http/Controllers/ArbitroController.php b/app/Http/Controllers/ArbitroController.php
+index 8a9e064..8da9666 100644
+--- a/app/Http/Controllers/ArbitroController.php
++++ b/app/Http/Controllers/ArbitroController.php
+@@ -57,7 +57,8 @@ public function index(Request $request)
+     /** Pagina completa della scheda arbitro. */
+     public function show(string $id)
+     {
+-        return view('arbitro.show', $this->datiScheda($id));
++        return view('arbitro.show',
++            array_merge($this->datiScheda($id), $this->navigazione($id)));
+     }
+ 
+     /** Solo il frammento scheda (usato dal popup degli elenchi). */
+@@ -68,6 +69,32 @@ public function scheda(string $id)
+ 
+     /* ------------------------------------------------------------------ */
+ 
++    /**
++     * Barra bottoni: scheda precedente e successiva in ordine alfabetico,
++     * lo stesso dell'elenco da cui si arriva.
++     */
++    protected function navigazione(string $id): array
++    {
++        [$prev, $next] = $this->wc->vicini(
++            'awc_referees', 'referee_id', ['family_name', 'given_name'], $id
++        );
++
++        $voce = function ($v) {
++            if (! $v) {
++                return null;
++            }
++
++            return [
++                'url'   => route('arbitro.show', $v->referee_id),
++                'img'   => $this->wc->bandieraUrl($v->country_name, null),
++                'forma' => 'tonda',
++                'label' => trim($v->given_name.' '.$v->family_name),
++            ];
++        };
++
++        return ['barraPrev' => $voce($prev), 'barraNext' => $voce($next)];
++    }
++
+     protected function datiScheda(string $id): array
+     {
+         $r = Referee::where('referee_id', $id)->first();
+diff --git a/app/Http/Controllers/GiocatoreController.php b/app/Http/Controllers/GiocatoreController.php
+index 858148a..7668694 100644
+--- a/app/Http/Controllers/GiocatoreController.php
++++ b/app/Http/Controllers/GiocatoreController.php
+@@ -72,7 +72,7 @@ public function index(Request $request)
+     /** Pagina completa della scheda giocatore. */
+     public function show(string $id)
+     {
+-        $dati = $this->datiScheda($id);
++        $dati = array_merge($this->datiScheda($id), $this->navigazione($id));
+ 
+         return view('giocatore.show', $dati);
+     }
+@@ -87,6 +87,39 @@ public function scheda(string $id)
+ 
+     /* ------------------------------------------------------------------ */
+ 
++    /**
++     * Barra bottoni: giocatore precedente e successivo in ordine
++     * alfabetico, lo stesso dell'elenco da cui si arriva. La miniatura
++     * e' la bandiera della nazionale con cui ha giocato l'ultima volta.
++     */
++    protected function navigazione(string $id): array
++    {
++        [$prev, $next] = $this->wc->vicini(
++            'awc_players', 'player_id', ['family_name', 'given_name'], $id
++        );
++
++        $voce = function ($v) {
++            if (! $v) {
++                return null;
++            }
++
++            $ultima = \Illuminate\Support\Facades\DB::table('awc_squads')
++                ->where('player_id', $v->player_id)
++                ->orderByDesc('tournament_id')->first();
++
++            return [
++                'url'   => route('giocatore.show', $v->player_id),
++                'img'   => $ultima
++                    ? $this->wc->bandieraUrl($ultima->team_code, $ultima->tournament_id)
++                    : null,
++                'forma' => 'tonda',
++                'label' => trim($v->given_name.' '.$v->family_name),
++            ];
++        };
++
++        return ['barraPrev' => $voce($prev), 'barraNext' => $voce($next)];
++    }
++
+     protected function datiScheda(string $id): array
+     {
+         $g = Player::where('player_id', $id)->first();
+@@ -188,7 +221,28 @@ protected function datiScheda(string $id): array
+             'anni'  => collect($anni)->map(fn ($a) => ['anno' => $a, 'tid' => 'WC-'.$a])->all(),
+         ];
+ 
++        /* ---- Club di provenienza, uno per Mondiale disputato ---- */
++        $righeRosa = Squad::where('player_id', $g->player_id)
++            ->orderBy('tournament_id')->get();
++
++        $idClub = $righeRosa->pluck('team_past_id')->filter()->unique()->values();
++        $anagraficaClub = $idClub->isEmpty()
++            ? collect()
++            : \Illuminate\Support\Facades\DB::table('awc_clubs')
++                ->whereIn('id', $idClub)->get()->keyBy('id');
++
++        $club = $righeRosa->map(function ($r) use ($anagraficaClub) {
++            $c = $r->team_past_id ? ($anagraficaClub[$r->team_past_id] ?? null) : null;
++
++            return [
++                'anno' => (string) $this->wc->anno($r->tournament_id),
++                'nome' => $r->team_past ?: ($c->club_name ?? null),
++                'logo' => $this->wc->logoClubUrl($c->logo ?? null),
++            ];
++        })->filter(fn ($c) => ! empty($c['nome']))->values()->all();
++
+         return [
++            'club'     => $club,
+             'g'        => $g,
+             'nome'     => trim(($g->given_name ?? '').' '.($g->family_name ?? '')),
+             'nascita'  => $g->birth_date ? $g->birth_date->format('d/m/Y') : '',
+diff --git a/app/Http/Controllers/SquadraAnnoController.php b/app/Http/Controllers/SquadraAnnoController.php
+index ee10871..ff69338 100644
+--- a/app/Http/Controllers/SquadraAnnoController.php
++++ b/app/Http/Controllers/SquadraAnnoController.php
+@@ -84,6 +84,21 @@ public function show(string $code, string $year)
+             'flag'   => $this->wc->bandieraUrl($code, $tid),
+             'prev'   => $prev,
+             'next'   => $next,
++            // Barra bottoni globale: si salta all'edizione precedente e
++            // successiva della stessa nazionale, con la locandina del
++            // Mondiale di destinazione come miniatura quadrata.
++            'barraPrev' => $prev ? [
++                'url'   => route('squadra_anno.show', ['code' => $code, 'year' => $prev]),
++                'img'   => $this->wc->bandieraUrl($code, 'WC-'.$prev),
++                'forma' => 'tonda',
++                'label' => $titolo.' '.$prev,
++            ] : null,
++            'barraNext' => $next ? [
++                'url'   => route('squadra_anno.show', ['code' => $code, 'year' => $next]),
++                'img'   => $this->wc->bandieraUrl($code, 'WC-'.$next),
++                'forma' => 'tonda',
++                'label' => $titolo.' '.$next,
++            ] : null,
+         ]);
+     }
+ 
+diff --git a/app/Http/Controllers/StadioController.php b/app/Http/Controllers/StadioController.php
+index 099a27a..2c8f495 100644
+--- a/app/Http/Controllers/StadioController.php
++++ b/app/Http/Controllers/StadioController.php
+@@ -61,7 +61,8 @@ public function index(Request $request)
+     /** Pagina completa della scheda stadio. */
+     public function show(string $id)
+     {
+-        return view('stadio.show', $this->datiScheda($id));
++        return view('stadio.show',
++            array_merge($this->datiScheda($id), $this->navigazione($id)));
+     }
+ 
+     /** Solo il frammento scheda (popup dell'elenco e della tab torneo). */
+@@ -72,6 +73,32 @@ public function scheda(string $id)
+ 
+     /* ------------------------------------------------------------------ */
+ 
++    /**
++     * Barra bottoni: scheda precedente e successiva in ordine alfabetico,
++     * lo stesso dell'elenco da cui si arriva.
++     */
++    protected function navigazione(string $id): array
++    {
++        [$prev, $next] = $this->wc->vicini(
++            'awc_stadiums', 'stadium_id', ['stadium_name'], $id
++        );
++
++        $voce = function ($v) {
++            if (! $v) {
++                return null;
++            }
++
++            return [
++                'url'   => route('stadio.show', $v->stadium_id),
++                'img'   => $this->wc->bandieraUrl($v->country_name, null),
++                'forma' => 'tonda',
++                'label' => $v->stadium_name,
++            ];
++        };
++
++        return ['barraPrev' => $voce($prev), 'barraNext' => $voce($next)];
++    }
++
+     protected function datiScheda(string $id): array
+     {
+         $s = DB::table('awc_stadiums')->where('stadium_id', $id)->first();
+diff --git a/app/Services/WcService.php b/app/Services/WcService.php
+index 10c832e..3f3d1b8 100644
+--- a/app/Services/WcService.php
++++ b/app/Services/WcService.php
+@@ -5,6 +5,7 @@
+ use App\Models\Flag;
+ use App\Models\Squad;
+ use Illuminate\Support\Collection;
++use Illuminate\Support\Facades\DB;
+ use Illuminate\Support\Facades\Schema;
+ 
+ /**
+@@ -121,6 +122,65 @@ public function logoClubUrl(?string $logo): ?string
+         return route('img', ['tipo' => 'clubs', 'file' => $logo]);
+     }
+ 
++    /**
++     * Voci precedente e successiva in un elenco ordinato, per la barra
++     * bottoni delle schede (stadi, arbitri, allenatori, giocatori).
++     *
++     * L'ordine e' quello alfabetico dell'elenco corrispondente, cosi'
++     * le frecce portano dove il visitatore si aspetta di finire.
++     * Il confronto sfrutta le tuple di MySQL, quindi bastano due query
++     * a prescindere da quante colonne compongono l'ordinamento.
++     *
++     * @param  string  $tabella   nome della tabella, senza prefisso di connessione
++     * @param  string  $colId     colonna identificativa
++     * @param  array   $colOrdine colonne che definiscono l'ordine
++     * @param  string  $idCorrente
++     * @return array   [precedente, successivo], ciascuno un oggetto o null
++     */
++    public function vicini(string $tabella, string $colId, array $colOrdine, string $idCorrente): array
++    {
++        $colonne = array_merge([$colId], $colOrdine);
++
++        $corrente = DB::table($tabella)->select($colonne)
++            ->where($colId, $idCorrente)->first();
++
++        if (! $corrente) {
++            return [null, null];
++        }
++
++        // La tupla di confronto include l'identificativo come ultimo
++        // elemento: senza, due omonimi si escluderebbero a vicenda e la
++        // navigazione salterebbe una scheda.
++        $tupla   = array_map(fn ($c) => $corrente->$c, $colOrdine);
++        $tupla[] = $corrente->$colId;
++
++        $espressione = '('.implode(', ', array_map(
++            fn ($c) => '`'.$c.'`', array_merge($colOrdine, [$colId])
++        )).')';
++        $segnaposti = '('.implode(', ', array_fill(0, count($tupla), '?')).')';
++
++        // MariaDB accetta le tuple nel confronto ma non nell'ordinamento:
++        // l'ORDER BY va scritto colonna per colonna.
++        $ordinaDesc = implode(', ', array_map(
++            fn ($c) => '`'.$c.'` DESC', array_merge($colOrdine, [$colId])
++        ));
++        $ordinaAsc = implode(', ', array_map(
++            fn ($c) => '`'.$c.'` ASC', array_merge($colOrdine, [$colId])
++        ));
++
++        $prev = DB::table($tabella)
++            ->whereRaw($espressione.' < '.$segnaposti, $tupla)
++            ->orderByRaw($ordinaDesc)
++            ->first();
++
++        $next = DB::table($tabella)
++            ->whereRaw($espressione.' > '.$segnaposti, $tupla)
++            ->orderByRaw($ordinaAsc)
++            ->first();
++
++        return [$prev, $next];
++    }
++
+     /* ----------------------------------------------------------------- */
+     /*  Squadre di un torneo (awc_squads)                                 */
+     /* ----------------------------------------------------------------- */
+diff --git a/resources/views/giocatore/scheda.blade.php b/resources/views/giocatore/scheda.blade.php
+index 6ad6491..fed1f7c 100644
+--- a/resources/views/giocatore/scheda.blade.php
++++ b/resources/views/giocatore/scheda.blade.php
+@@ -35,6 +35,34 @@
+         </span>
+     </div>
+ 
++    @if (!empty($club))
++        <div class="riga">
++            <span class="lbl">Club</span>
++            <span class="val club-lista">
++                @foreach ($club as $c)
++                    <span class="club-voce">
++                        @if ($c['logo'])
++                            <img src="{{ $c['logo'] }}" alt="" width="18" height="18"
++                                 loading="lazy" onerror="this.style.display='none'">
++                        @endif
++                        <span class="club-nome">{{ $c['nome'] }}</span>
++                        <span class="club-anno">{{ $c['anno'] }}</span>
++                    </span>
++                @endforeach
++            </span>
++        </div>
++        <style>
++            /* I nomi lunghi non devono allargare la riga oltre il box:
++               ogni voce e' un blocco a se' che va a capo per intero. */
++            .club-lista{display:flex;flex-wrap:wrap;gap:6px 14px;min-width:0;}
++            .club-voce{display:inline-flex;align-items:center;gap:6px;
++                white-space:nowrap;max-width:100%;}
++            .club-voce img{flex:none;border-radius:2px;}
++            .club-nome{overflow:hidden;text-overflow:ellipsis;}
++            .club-anno{color:var(--muted);font-size:12px;}
++        </style>
++    @endif
++
+     <div class="riga riga-gare">
+         <span class="lbl">Gare giocate</span>
+         <span class="val">
+-- 
+2.43.0
+
