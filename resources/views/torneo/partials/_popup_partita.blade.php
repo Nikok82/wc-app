@@ -43,17 +43,17 @@
                 @endif
             </div>
         </div>
-        @if (!empty($p['marcatori_match']))
+        @php $vociGol = \App\Support\Marcatori::aggrega($p['marcatori_match'] ?? []); @endphp
+        @if (!empty($vociGol))
             <div class="marcatori-popup">
-                @foreach ($p['marcatori_match'] as $g)
+                @foreach ($vociGol as $g)
                     <span class="marcatore">
                         @if ($g['flag'])
                             <img class="flag" src="{{ $g['flag'] }}" alt="" onerror="this.style.display='none'">
                         @endif
-                        {{ $g['minuto'] }}
+                        {{ \App\Support\Marcatori::minuti($g) }}
                         <a href="{{ route('giocatore.show', $g['player_id']) }}">{{ $g['nome'] }}</a>
-                        @if ($g['own_goal'])<em class="autogol">(autogol)</em>@endif
-                        @if ($g['penalty'])<em class="autogol">(rigore)</em>@endif
+                        @if ($g['autogol'])<em class="autogol">(autogol)</em>@endif
                     </span>
                 @endforeach
             </div>

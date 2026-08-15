@@ -132,7 +132,7 @@
     #torneo-partite .mt-gol{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:6px;
         padding-top:5px;border-top:1px dotted #bbb;font-size:12px;color:#6b7a72;min-width:0;}
     #torneo-partite .mt-gol-voce{display:inline-flex;align-items:center;gap:4px;
-        white-space:nowrap;max-width:100%;}
+        white-space:normal;max-width:100%;}
     #torneo-partite .mt-gol-min{font-variant-numeric:tabular-nums;min-width:26px;
         text-align:right;color:#8b968f;}
     #torneo-partite .mt-gol-fl{width:15px;height:10px;object-fit:cover;border-radius:1px;

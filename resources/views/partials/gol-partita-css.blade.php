@@ -6,7 +6,10 @@
        riga e fa sbordare il contenitore in responsive. */
     .gol-riga{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:5px;
         font-size:12px;color:var(--muted);min-width:0;}
-    .gol-voce{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;
+    /* B2: una voce puo' contenere piu' minuti ("15', 41', 44' (rig.)"), che
+       su schermo stretto devono poter andare a capo dentro la voce stessa;
+       il nome, invece, resta su una riga sola. */
+    .gol-voce{display:inline-flex;align-items:center;gap:4px;white-space:normal;
         max-width:100%;}
     .gol-min{font-variant-numeric:tabular-nums;min-width:26px;text-align:right;
         color:#8b968f;}
@@ -15,7 +18,7 @@
     /* Il nome e' un link alla scheda giocatore, ma nel tabellino deve
        restare discreto: colore del testo, sottolineatura solo al passaggio. */
     .gol-nome{overflow:hidden;text-overflow:ellipsis;color:var(--ink);
-        text-decoration:none;}
+        text-decoration:none;white-space:nowrap;}
     a.gol-nome:hover{text-decoration:underline;color:var(--accent);}
     .gol-nota{color:#8b968f;font-style:italic;}
 </style>

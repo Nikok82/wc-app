@@ -7,12 +7,15 @@
 
      B1 (15/08): il nome porta alla scheda del giocatore. L'ancora del
      punteggio si chiude PRIMA di questa include in tutte e tre le tab che
-     la usano, quindi non si creano ancore annidate. --}}
-@if (!empty($gol))
+     la usano, quindi non si creano ancore annidate.
+     B2 (15/08): le reti dello stesso giocatore nella stessa partita stanno
+     in una voce sola, con i minuti in fila (vedi App\Support\Marcatori). --}}
+@php $vociGol = \App\Support\Marcatori::aggrega($gol ?? []); @endphp
+@if (!empty($vociGol))
     <div class="gol-riga">
-        @foreach ($gol as $g)
+        @foreach ($vociGol as $g)
             <span class="gol-voce">
-                <span class="gol-min">{{ $g['minuto'] }}</span>
+                <span class="gol-min">{{ \App\Support\Marcatori::minuti($g) }}</span>
                 @if ($g['flag'])
                     <img class="gol-fl" src="{{ $g['flag'] }}" alt="{{ $g['team_code'] }}"
                          onerror="this.style.display='none'">
@@ -23,8 +26,8 @@
                 @else
                     <span class="gol-nome">{{ $g['nome'] }}</span>
                 @endif
-                @if ($g['nota'])
-                    <span class="gol-nota">({{ $g['nota'] }})</span>
+                @if ($g['autogol'])
+                    <span class="gol-nota">(aut.)</span>
                 @endif
             </span>
         @endforeach

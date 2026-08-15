@@ -56,11 +56,12 @@
         </div>
     </div>
 
-    @if (!empty($p['marcatori_match']))
+    @php $vociGol = \App\Support\Marcatori::aggrega($p['marcatori_match'] ?? []); @endphp
+    @if (!empty($vociGol))
         <div class="mt-gol">
-            @foreach ($p['marcatori_match'] as $g)
+            @foreach ($vociGol as $g)
                 <span class="mt-gol-voce">
-                    <span class="mt-gol-min">{{ $g['minuto'] }}</span>
+                    <span class="mt-gol-min">{{ \App\Support\Marcatori::minuti($g) }}</span>
                     @if ($g['flag'])
                         <img class="mt-gol-fl" src="{{ $g['flag'] }}" alt="{{ $g['team_code'] }}"
                              onerror="this.style.display='none'">
@@ -71,10 +72,8 @@
                     @else
                         <span class="mt-gol-nome">{{ $g['nome'] }}</span>
                     @endif
-                    @if ($g['own_goal'])
+                    @if ($g['autogol'])
                         <span class="mt-gol-nota">(aut.)</span>
-                    @elseif ($g['penalty'])
-                        <span class="mt-gol-nota">(rig.)</span>
                     @endif
                 </span>
             @endforeach
