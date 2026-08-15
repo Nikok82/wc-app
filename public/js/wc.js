@@ -62,12 +62,39 @@
 
     /* ================= SPLASH DI CARICAMENTO ================= */
 
-    WC.splashHTML = function () {
+    /* C3 (15/08): unico corpo animato, riusato dal velo a tutto schermo e
+       dai riquadri dei tab. Icona che ruota + bagliore verde che pulsa. */
+    function corpoCarica() {
         var logo = CONF.logoSplash
-            ? '<img class="wc-splash-logo" src="' + CONF.logoSplash + '" alt="" onerror="this.style.display=\'none\'">'
+            ? '<img src="' + CONF.logoSplash + '" alt="" onerror="this.style.display=\'none\'">'
             : '';
-        return '<div class="wc-splash">' + logo +
-               '<div class="wc-splash-bar"><span></span></div></div>';
+        return '<div class="wc-carica-corpo"><span class="bagliore"></span>' + logo + '</div>';
+    }
+
+    WC.splashHTML = function () {
+        return '<div class="wc-splash">' + corpoCarica() + '</div>';
+    };
+
+    /* Velo a tutto schermo, per il caricamento di una PAGINA (click su un
+       link, ricarica). Creato alla prima chiamata e poi riusato: cosi' la
+       dissolvenza in entrata parte sempre dallo stesso nodo. */
+    var veloCarica = null;
+
+    WC.mostraCaricamento = function () {
+        if (!veloCarica) {
+            veloCarica = document.createElement('div');
+            veloCarica.className = 'wc-carica';
+            veloCarica.innerHTML = corpoCarica();
+            document.body.appendChild(veloCarica);
+        }
+        // forza un reflow prima di aggiungere la classe, altrimenti al primo
+        // inserimento la transizione non parte e il velo appare di scatto
+        void veloCarica.offsetWidth;
+        veloCarica.classList.add('visibile');
+    };
+
+    WC.nascondiCaricamento = function () {
+        if (veloCarica) veloCarica.classList.remove('visibile');
     };
 
     /* ================= LOADER DEI TAB (pagine guscio) ================= */
@@ -730,6 +757,10 @@
     function wcbarCaricamento(inCorso) {
         wcbarSet('reload', inCorso);
         wcbarSet('stop', !inCorso);
+        // C3: lo stesso segnale accende e spegne il velo di caricamento.
+        // La barra bottoni e' solo responsive, il velo no: sta qui perche'
+        // e' qui che il sito sa gia' quando una navigazione comincia e finisce.
+        if (inCorso) WC.mostraCaricamento(); else WC.nascondiCaricamento();
     }
 
     document.addEventListener('click', function (e) {
@@ -755,8 +786,12 @@
     });
 
     function wcbarInit() {
-        if (!document.querySelector('.wc-barra')) return;
-        wcbarCaricamento(document.readyState !== 'complete');
+        // Al primo caricamento la pagina e' gia' a video quando questo
+        // script parte: alzare il velo qui produrrebbe solo un lampo. Si
+        // sistemano i bottoni e basta; il velo entra in scena dalla
+        // navigazione successiva in poi.
+        wcbarSet('reload', false);
+        wcbarSet('stop', true);
         wcbarFrecce();
         window.addEventListener('load', function () { wcbarCaricamento(false); });
         // Ritorno alla pagina (anche da bfcache): ripristina gli stati
