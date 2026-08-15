@@ -514,6 +514,115 @@
         });
     };
 
+    /* ================= A3: RICERCA GLOBALE (15/08) ================= */
+    /* La lente accanto all'hamburger fa entrare da sinistra il campo di
+       ricerca; i risultati arrivano come frammento HTML dalla rotta /cerca
+       e vengono infilati nel riquadro sovrapposto, come gia' si fa per i
+       tab e per i popup delle schede.
+
+       Si interroga mentre si digita, ma con una pausa: senza, ogni tasto
+       farebbe partire una query su nove tabelle. Le risposte arretrate
+       vengono scartate confrontando il numero di richiesta, altrimenti una
+       risposta lenta puo' sovrascrivere una piu' recente. */
+
+    var RIC_PAUSA = 260;   // ms di quiete prima di interrogare
+
+    var ricTimer = null;
+    var ricNumero = 0;
+    var ricUltimaQ = '';
+
+    function ricElementi() {
+        return {
+            barra:  document.getElementById('wc-ricerca'),
+            campo:  document.getElementById('wc-ricerca-campo'),
+            velo:   document.getElementById('ricerca-overlay'),
+            box:    document.getElementById('ricerca-risultati')
+        };
+    }
+
+    WC.apriRicerca = function () {
+        var el = ricElementi();
+        if (!el.barra) return;
+        menuChiudi();
+        el.barra.classList.add('aperta');
+        el.velo.hidden = false;
+        el.box.hidden = false;
+        if (!el.box.innerHTML.trim()) WC.cerca('');
+        // il fuoco dopo l'animazione: su iOS anticiparlo fa saltare la barra
+        setTimeout(function () { el.campo.focus(); }, 180);
+    };
+
+    WC.chiudiRicerca = function () {
+        var el = ricElementi();
+        if (!el.barra) return;
+        el.barra.classList.remove('aperta');
+        el.velo.hidden = true;
+        el.box.hidden = true;
+        if (el.campo) el.campo.blur();
+    };
+
+    /* tipo/pagina servono a sfogliare i risultati di un solo gruppo */
+    WC.cerca = function (q, tipo, pagina) {
+        var el = ricElementi();
+        if (!el.box) return;
+
+        ricUltimaQ = q;
+        var mio = ++ricNumero;
+
+        var url = el.box.dataset.url + '?q=' + encodeURIComponent(q);
+        if (tipo) url += '&tipo=' + encodeURIComponent(tipo) + '&pagina=' + (pagina || 1);
+
+        fetch(url)
+            .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+            .then(function (html) {
+                if (mio !== ricNumero) return;   // risposta arretrata: si scarta
+                el.box.innerHTML = html;
+            })
+            .catch(function () {
+                if (mio !== ricNumero) return;
+                el.box.innerHTML = '<p class="err" style="padding:14px">Errore nella ricerca.</p>';
+            });
+    };
+
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('.wcnav-lente')) {
+            var el = ricElementi();
+            if (el.barra && el.barra.classList.contains('aperta')) WC.chiudiRicerca();
+            else WC.apriRicerca();
+            return;
+        }
+        if (e.target.closest('.wc-ricerca .ric-chiudi') || e.target.id === 'ricerca-overlay') {
+            WC.chiudiRicerca();
+            return;
+        }
+        // frecce di impaginazione di un singolo gruppo
+        var pg = e.target.closest('#ricerca-risultati .ric-pg[data-tipo]');
+        if (pg && !pg.disabled) {
+            WC.cerca(ricUltimaQ, pg.dataset.tipo, parseInt(pg.dataset.pagina, 10) || 1);
+            return;
+        }
+        // click su un risultato: si va via, il riquadro si chiude da solo
+        if (e.target.closest('#ricerca-risultati .ric-voce')) {
+            WC.chiudiRicerca();
+        }
+    });
+
+    document.addEventListener('input', function (e) {
+        if (e.target.id !== 'wc-ricerca-campo') return;
+        var q = e.target.value;
+        clearTimeout(ricTimer);
+        ricTimer = setTimeout(function () { WC.cerca(q); }, RIC_PAUSA);
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') WC.chiudiRicerca();
+        if (e.key === 'Enter' && e.target.id === 'wc-ricerca-campo') {
+            e.preventDefault();
+            clearTimeout(ricTimer);
+            WC.cerca(e.target.value);
+        }
+    });
+
     /* ============ A1: SCORRIMENTO LATERALE FRA SCHEDE (15/08) ============ */
     /* Trascinando il dito si salta alla scheda precedente / successiva, le
        stesse mete delle frecce della barra bottoni. Attivo solo dove il

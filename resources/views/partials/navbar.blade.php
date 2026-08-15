@@ -67,6 +67,69 @@
     #wc-drawer .drawer-torneo:hover{background:#f1f7f2;}
     #wc-drawer .drawer-torneo img{width:44px;height:56px;object-fit:contain;flex:none;}
     #wc-drawer .drawer-torneo span{text-align:right;}
+
+    /* ================= A3: RICERCA GLOBALE (15/08) ================= */
+    /* La lente sta accanto all'hamburger; al clic il campo entra da
+       sinistra con uno scorrimento rapido e i risultati compaiono in un
+       riquadro sovrapposto. */
+    .wcnav-azioni{display:flex;align-items:center;gap:2px;}
+    .wcnav-lente{width:44px;height:44px;border:0;background:transparent;cursor:pointer;
+           display:flex;align-items:center;justify-content:center;color:#ffff00;padding:9px;}
+    .wcnav-lente svg{width:24px;height:24px;color:#ffff00;}
+
+    .wc-ricerca{position:fixed;top:0;left:0;right:0;z-index:1250;
+           background:linear-gradient(142deg,#045e03 0%,#0f6c14 55%,#045e03 100%);
+           box-shadow:0 2px 10px rgba(0,0,0,.35);
+           transform:translateX(-100%);transition:transform .22s ease-out;}
+    .wc-ricerca.aperta{transform:translateX(0);}
+    .wc-ricerca .ric-barra{display:flex;align-items:center;gap:8px;padding:8px 10px;min-height:56px;}
+    .wc-ricerca input{flex:1;min-width:0;font:inherit;font-size:16px;padding:10px 14px;
+           border:0;border-radius:999px;background:#fff;color:var(--ink,#16231d);
+           outline:2px solid transparent;}
+    .wc-ricerca input:focus{outline-color:#ffff00;}
+    .wc-ricerca .ric-chiudi{width:40px;height:40px;flex:none;border:0;background:transparent;
+           color:#ffff00;font-size:24px;line-height:1;cursor:pointer;}
+
+    #ricerca-overlay{position:fixed;inset:0;background:rgba(10,20,15,.45);z-index:1240;}
+    #ricerca-overlay[hidden]{display:none;}
+
+    #ricerca-risultati{position:fixed;top:56px;left:0;right:0;z-index:1245;
+           max-height:calc(100dvh - 56px);overflow:auto;-webkit-overflow-scrolling:touch;
+           background:#fff;border-radius:0 0 14px 14px;box-shadow:0 12px 30px rgba(0,0,0,.35);
+           padding:8px 12px 16px;}
+    #ricerca-risultati[hidden]{display:none;}
+    @media (min-width:760px){
+        .wc-ricerca{left:auto;right:auto;width:100%;}
+        #ricerca-risultati{left:50%;transform:translateX(-50%);width:min(680px,96vw);
+            border-radius:14px;}
+    }
+
+    .ric-gruppo{margin-bottom:12px;}
+    .ric-titolo{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+           padding:8px 2px 5px;border-bottom:2px solid var(--verde,#1b9e57);
+           font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.5px;
+           color:var(--verde-scuro,#045e03);}
+    .ric-titolo .ric-conta{font-size:12px;font-weight:600;color:#6b7a72;
+           text-transform:none;letter-spacing:0;}
+    .ric-voce{display:flex;align-items:center;gap:10px;padding:9px 4px;
+           border-bottom:1px solid #e2e8e5;color:#16231d;text-decoration:none;min-width:0;}
+    .ric-voce:last-of-type{border-bottom:0;}
+    .ric-voce:hover{background:#f2f7f4;text-decoration:none;}
+    .ric-voce img,.ric-voce .ric-vuota{width:26px;height:26px;flex:none;border-radius:50%;
+           object-fit:cover;box-shadow:0 1px 2px rgba(0,0,0,.22);background:#eef2ef;}
+    .ric-voce .ric-vuota{box-shadow:none;}
+    .ric-testi{display:flex;flex-direction:column;min-width:0;}
+    .ric-nome{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .ric-sotto{font-size:12px;color:#6b7a72;overflow:hidden;text-overflow:ellipsis;
+           white-space:nowrap;}
+    .ric-pagine{display:flex;align-items:center;justify-content:center;gap:12px;
+           padding:8px 0 2px;color:#6b7a72;font-size:13px;}
+    .ric-pg{width:32px;height:32px;border-radius:50%;border:1px solid #e2e8e5;
+           background:#fff;font-size:16px;font-weight:700;cursor:pointer;color:#16231d;}
+    .ric-pg[disabled]{opacity:.35;cursor:default;}
+    .ric-avviso{color:#6b7a72;padding:14px 4px;margin:0;}
+    .ric-piede{border-top:1px dotted #cfd6d1;margin-top:10px;padding-top:8px;
+           color:#6b7a72;line-height:1.45;}
 </style>
 
 <nav class="wcnav">
@@ -74,10 +137,27 @@
         <img src="{{ $logoNav }}" alt="FIFA WC History"
              onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'fallback',innerHTML:'FIFA <b>WC</b> History'}))">
     </a>
-    <button class="wcnav-burger" type="button" aria-label="Menu">
-        <span></span><span></span><span></span>
-    </button>
+    <div class="wcnav-azioni">
+        {{-- A3: ricerca globale --}}
+        <button class="wcnav-lente" type="button" aria-label="Cerca">
+            {!! \App\Support\Icons::svg('search') !!}
+        </button>
+        <button class="wcnav-burger" type="button" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+    </div>
 </nav>
+
+{{-- A3: barra di ricerca (entra da sinistra) e riquadro dei risultati --}}
+<div class="wc-ricerca" id="wc-ricerca">
+    <div class="ric-barra">
+        <input type="search" id="wc-ricerca-campo" placeholder="Cerca in tutto il sito…"
+               autocomplete="off" enterkeyhint="search">
+        <button class="ric-chiudi" type="button" aria-label="Chiudi la ricerca">&times;</button>
+    </div>
+</div>
+<div id="ricerca-overlay" hidden></div>
+<div id="ricerca-risultati" hidden data-url="{{ route('ricerca') }}"></div>
 
 <div id="wc-drawer-overlay"></div>
 <aside id="wc-drawer" aria-label="Menu principale">

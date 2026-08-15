@@ -78,6 +78,10 @@ Route::get('/partita/{matchId}/formazioni', [PartitaController::class, 'formazio
 Route::get('/partita/{matchId}/eventi', [PartitaController::class, 'eventi'])->name('partita.eventi');
 Route::get('/partita/{matchId}/situazione', [PartitaController::class, 'situazione'])->name('partita.situazione');
 
+/* ---------------- Ricerca globale (15/08, A3) ---------------- */
+// Frammento HTML dei risultati, raggruppati per tipo e impaginati a dieci.
+Route::get('/cerca', [\App\Http\Controllers\RicercaController::class, 'cerca'])->name('ricerca');
+
 /* ---------------- Club (15/08, C2) ---------------- */
 // Elenco alfabetico (10 per pagina, filtro per nazione) e scheda del club,
 // con i giocatori convocati mentre ci militavano, divisi per Mondiale.
