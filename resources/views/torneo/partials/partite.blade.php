@@ -7,6 +7,17 @@
     $haKo = ! empty($rounds) || $gironeFinale->isNotEmpty();
 @endphp
 
+{{-- A2 (15/08): riga dei gruppi fra la barra verde delle icone e il primo
+     girone. Ogni lettera e' un'ancora al girone corrispondente. --}}
+@php
+    $barraGruppi = function ($gruppi, $ctx) {
+        return collect($gruppi)->map(fn ($g) => [
+            'etichetta' => trim(explode(' ', $g['group_name'], 2)[1] ?? $g['group_name']),
+            'ancora'    => 'girone-'.$ctx.'-'.\Illuminate\Support\Str::slug($g['group_name']),
+        ])->all();
+    };
+@endphp
+
 <div id="torneo-partite" data-apertura="{{ $apertura }}">
 
     <div class="sub-bottoni">
@@ -28,6 +39,7 @@
     {{-- Fase a gruppi 1 --}}
     @if ($fase1->isNotEmpty())
         <div class="sezione-fase" data-sez="f1" @if($apertura !== 'f1') style="display:none" @endif>
+            @include('torneo.partials._barra_gruppi', ['voci' => $barraGruppi($fase1, 'f1')])
             @foreach ($fase1 as $g)
                 @include('torneo.partials._girone', ['g' => $g, 'ctx' => 'f1'])
             @endforeach
@@ -37,6 +49,7 @@
     {{-- Seconda fase a gruppi (1974-82) --}}
     @if ($fase2->isNotEmpty())
         <div class="sezione-fase" data-sez="f2" style="display:none">
+            @include('torneo.partials._barra_gruppi', ['voci' => $barraGruppi($fase2, 'f2')])
             @foreach ($fase2 as $g)
                 @include('torneo.partials._girone', ['g' => $g, 'ctx' => 'f2'])
             @endforeach

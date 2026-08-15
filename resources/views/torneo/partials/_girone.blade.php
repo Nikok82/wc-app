@@ -2,9 +2,13 @@
      Variabili: $g (da TorneoPartiteService::gironi), $tournamentId, $ctx --}}
 @php
     $nome = explode(' ', $g['group_name'], 2);
+    // A2 (15/08): ancora del girone, bersaglio della riga "Gruppi: A • B • C".
+    // Il contesto ($ctx) entra nell'id perche' prima e seconda fase a gironi
+    // convivono nella stessa pagina e possono avere lettere uguali.
+    $ancora = 'girone-'.$ctx.'-'.\Illuminate\Support\Str::slug($g['group_name']);
 @endphp
 
-<div class="groups">
+<div class="groups" id="{{ $ancora }}">
     <div class="title-group">
         @if ($g['e_finale_1950'])
             <span class="g1">Girone</span><span class="g2 finale-1950">Finale</span>
