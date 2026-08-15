@@ -111,6 +111,7 @@
     <a class="drawer-voce" href="{{ route('allenatori.index') }}">Manager</a>
     <a class="drawer-voce" href="{{ route('arbitri.index') }}">Arbitri</a>
     <a class="drawer-voce" href="{{ route('stadi.index') }}">Stadi</a>
+    <a class="drawer-voce" href="{{ route('club.index') }}">Club</a>
     {{-- Voce temporanea: accesso rapido al pannello admin (da rimuovere in futuro) --}}
     <a class="drawer-voce" href="{{ url('admin') }}">Admin</a>
 </aside>

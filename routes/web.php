@@ -78,6 +78,13 @@ Route::get('/partita/{matchId}/formazioni', [PartitaController::class, 'formazio
 Route::get('/partita/{matchId}/eventi', [PartitaController::class, 'eventi'])->name('partita.eventi');
 Route::get('/partita/{matchId}/situazione', [PartitaController::class, 'situazione'])->name('partita.situazione');
 
+/* ---------------- Club (15/08, C2) ---------------- */
+// Elenco alfabetico (10 per pagina, filtro per nazione) e scheda del club,
+// con i giocatori convocati mentre ci militavano, divisi per Mondiale.
+Route::get('/club', [\App\Http\Controllers\ClubController::class, 'index'])->name('club.index');
+Route::get('/club/{id}', [\App\Http\Controllers\ClubController::class, 'show'])
+    ->where('id', '\d+')->name('club.show');
+
 /* ---------------- Stadi (04/08) ---------------- */
 // Elenco con ricerca/paginazione/popup + scheda (pagina e frammento)
 Route::get('/stadi', [\App\Http\Controllers\StadioController::class, 'index'])->name('stadi.index');
