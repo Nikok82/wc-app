@@ -371,6 +371,11 @@
         gap:10px;min-width:0;}
     .popup-partita .match .home{justify-content:flex-start;}
     .popup-partita .match .away{justify-content:flex-end;}
+    /* D2: la bandiera e' avvolta da un'ancora verso la scheda squadra-anno;
+       senza flex:none sul contenitore l'ancora si comprimerebbe e la
+       bandiera perderebbe la sua larghezza fissa. */
+    .popup-partita .match .home > a,.popup-partita .match .away > a{flex:none;
+        display:inline-flex;line-height:0;}
     .popup-partita .match .flag{width:44px;height:auto;border-radius:4px;flex:none;
         box-shadow:0 1px 3px rgba(0,0,0,.35);}
     .popup-partita .match span{font-size:22px;overflow:hidden;text-overflow:ellipsis;
