@@ -99,6 +99,17 @@ class SquadraAnnoController extends Controller
                 'forma' => 'tonda',
                 'label' => $titolo.' '.$next,
             ] : null,
+            // A1 — scorrimento laterale: stesse mete delle frecce.
+            'swipeNav' => [
+                'prev' => $prev ? [
+                    'url'   => route('squadra_anno.show', ['code' => $code, 'year' => $prev]),
+                    'label' => $titolo.' '.$prev,
+                ] : null,
+                'next' => $next ? [
+                    'url'   => route('squadra_anno.show', ['code' => $code, 'year' => $next]),
+                    'label' => $titolo.' '.$next,
+                ] : null,
+            ],
         ]);
     }
 

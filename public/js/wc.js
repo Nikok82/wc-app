@@ -514,6 +514,78 @@
         });
     };
 
+    /* ============ A1: SCORRIMENTO LATERALE FRA SCHEDE (15/08) ============ */
+    /* Trascinando il dito si salta alla scheda precedente / successiva, le
+       stesse mete delle frecce della barra bottoni. Attivo solo dove il
+       layout ha stampato #wc-swipe, cioe' squadra, squadra-anno e torneo.
+
+       Direzione: verso SINISTRA -> precedente, verso destra -> successiva
+       (esempio di Niko: dall'Italia a sinistra si arriva a Israele). Il
+       gesto punta alla freccia corrispondente, non alla pagina "che entra"
+       come nei caroselli.
+
+       Priorita' (decisa il 15/08): dentro un contenitore che scorre in
+       orizzontale — il bracket, le pillole dei turni, l'albero — comanda
+       quello e il salto di pagina non scatta. Il controllo e' sul punto di
+       PARTENZA del trascinamento, non su dove finisce. */
+
+    var SWIPE_MIN = 70;     // px minimi di spostamento orizzontale
+    var SWIPE_RAPP = 1.6;   // quanto l'orizzontale deve battere il verticale
+    var SWIPE_MAXT = 900;   // ms oltre i quali non e' piu' un gesto ma un trascinamento
+
+    /* true se il punto di partenza cade dentro qualcosa che scorre di suo
+       in orizzontale (o dentro un campo di testo, dove il dito seleziona). */
+    function dentroScorrimentoOrizzontale(el) {
+        for (var n = el; n && n !== document.body; n = n.parentElement) {
+            if (n.nodeType !== 1) continue;
+            if (n.matches('input, textarea, select, [contenteditable="true"]')) return true;
+            var st = getComputedStyle(n);
+            var ox = st.overflowX;
+            if ((ox === 'auto' || ox === 'scroll') && n.scrollWidth > n.clientWidth + 4) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    WC.initSwipeSchede = function () {
+        var cfg = document.getElementById('wc-swipe');
+        if (!cfg) return;
+
+        var x0 = 0, y0 = 0, t0 = 0, valido = false;
+
+        document.addEventListener('touchstart', function (e) {
+            // Un dito solo: con due il visitatore sta ingrandendo, non scorrendo.
+            valido = e.touches.length === 1
+                && !dentroScorrimentoOrizzontale(e.target);
+            if (!valido) return;
+            x0 = e.touches[0].clientX;
+            y0 = e.touches[0].clientY;
+            t0 = Date.now();
+        }, { passive: true });
+
+        document.addEventListener('touchend', function (e) {
+            if (!valido) return;
+            valido = false;
+            if (!e.changedTouches || !e.changedTouches.length) return;
+
+            var dx = e.changedTouches[0].clientX - x0;
+            var dy = e.changedTouches[0].clientY - y0;
+
+            if (Date.now() - t0 > SWIPE_MAXT) return;
+            if (Math.abs(dx) < SWIPE_MIN) return;
+            // direzione nettamente orizzontale: senza questo controllo uno
+            // scorrimento verticale storto cambierebbe pagina
+            if (Math.abs(dx) < Math.abs(dy) * SWIPE_RAPP) return;
+
+            var meta = dx < 0 ? cfg.dataset.prev : cfg.dataset.next;
+            if (!meta) return;
+
+            if (WC.mostraCaricamento) WC.mostraCaricamento();
+            window.location.href = meta;
+        }, { passive: true });
+    };
+
     /* ================= MAPPE LEAFLET ================= */
 
     var leafletPromise = null;
@@ -812,6 +884,7 @@
         WC.initMappeStadio(document);
         WC.initBracketFotmob(document);
         WC.initGiocatori(document);
+        WC.initSwipeSchede();
         WC.effettoLuce(document);
         osservaLuce();
     });

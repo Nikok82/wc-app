@@ -76,6 +76,9 @@
         'barraPrev' => $barraPrev ?? null,
         'barraNext' => $barraNext ?? null,
     ])
+    {{-- A1: scorrimento laterale fra schede (solo dove i controller
+         passano $swipeNav: squadra e squadra-anno). --}}
+    @include('partials.swipe-schede', ['swipe' => $swipeNav ?? null])
     @include('partials.wc-assets')
 </body>
 </html>

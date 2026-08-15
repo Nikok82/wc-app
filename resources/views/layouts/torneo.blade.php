@@ -133,6 +133,11 @@
             'label' => 'Mondiale ' . $next['year'],
         ] : null,
     ])
+    {{-- A1: scorrimento laterale fra tornei, stesse mete delle frecce --}}
+    @include('partials.swipe-schede', ['swipe' => [
+        'prev' => (isset($prev) && $prev) ? ['url' => $prev['url'], 'label' => 'Mondiale '.$prev['year']] : null,
+        'next' => (isset($next) && $next) ? ['url' => $next['url'], 'label' => 'Mondiale '.$next['year']] : null,
+    ]])
     @include('partials.wc-assets')
 </body>
 </html>

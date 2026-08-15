@@ -56,9 +56,12 @@ class SquadraController extends Controller
             'label' => $next->team_name,
         ] : null;
 
+        // A1 — scorrimento laterale: stesse mete delle frecce.
+        $swipeNav = ['prev' => $barraPrev, 'next' => $barraNext];
+
         return view('squadra.show', compact(
             'team', 'geo', 'titolo', 'prev', 'next', 'code', 'flag',
-            'prevFlag', 'nextFlag', 'barraPrev', 'barraNext'
+            'prevFlag', 'nextFlag', 'barraPrev', 'barraNext', 'swipeNav'
         ));
     }
 
