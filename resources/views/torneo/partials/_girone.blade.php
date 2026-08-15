@@ -21,6 +21,9 @@
                     @include('torneo.partials._match_card', [
                         'p'   => $p,
                         'pid' => 'pop-'.$ctx.'-'.$p['match_id'],
+                        // Nei gironi una sconfitta non elimina: niente barratura.
+                        // Nel girone finale del 1950 vale lo stesso principio.
+                        'barra' => false,
                     ])
                 @endforeach
             </div>

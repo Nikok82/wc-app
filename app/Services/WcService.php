@@ -181,6 +181,55 @@ class WcService
         return [$prev, $next];
     }
 
+    /**
+     * Marcatori di un gruppo di partite, pronti per essere elencati sotto
+     * il punteggio: minuto, bandiera, nome, eventuale annotazione.
+     *
+     * La bandiera e' quella della squadra a cui la rete viene accreditata
+     * (`team_code`) e non quella di chi la realizza: su un autogol il gol
+     * va contato sotto la squadra che ne beneficia, con l'annotazione che
+     * chiarisce l'equivoco.
+     *
+     * @param  array  $matchIds
+     * @return array  match_id => elenco di marcatori
+     */
+    public function golPerPartite(array $matchIds): array
+    {
+        if (empty($matchIds)) {
+            return [];
+        }
+
+        $righe = DB::table('awc_goals')
+            ->whereIn('match_id', $matchIds)
+            ->orderBy('match_id')
+            ->orderByRaw('COALESCE(minute_regulation, 999)')
+            ->orderBy('key_id')
+            ->get();
+
+        $out = [];
+        foreach ($righe as $g) {
+            $nota = null;
+            if ($g->own_goal) {
+                $nota = 'aut.';
+            } elseif ($g->penalty) {
+                $nota = 'rig.';
+            }
+
+            $out[$g->match_id][] = [
+                'player_id' => $g->player_id,
+                // Iniziale del nome piu' cognome: gli elenchi sotto le
+                // partite devono restare stretti.
+                'nome'      => trim(mb_substr((string) $g->given_name, 0, 1).'. '.$g->family_name, '. '),
+                'minuto'    => $g->minute_label ?: ($g->minute_regulation ? $g->minute_regulation."'" : ''),
+                'nota'      => $nota,
+                'team_code' => $g->team_code,
+                'flag'      => $this->bandieraUrl($g->team_code, $g->tournament_id),
+            ];
+        }
+
+        return $out;
+    }
+
     /* ----------------------------------------------------------------- */
     /*  Squadre di un torneo (awc_squads)                                 */
     /* ----------------------------------------------------------------- */

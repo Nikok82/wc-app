@@ -260,6 +260,7 @@ class TorneoPartiteService
             'date'       => $m->match_date,
             'time'       => $m->match_time,
             'stadium'    => $m->stadium_name,
+            'city'       => $m->city_name ?? null,
             'stage'      => $m->stage_name,
             'group'      => $m->group_name,
             'home'       => [

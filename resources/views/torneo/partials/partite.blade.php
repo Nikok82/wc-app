@@ -70,8 +70,11 @@
                             <div class="partite-list">
                                 @foreach ($round['partite'] as $p)
                                     @include('torneo.partials._match_card', [
-                                        'p'   => $p,
-                                        'pid' => 'pop-ko-'.$p['match_id'],
+                                        'p'     => $p,
+                                        'pid'   => 'pop-ko-'.$p['match_id'],
+                                        // Nella fase a eliminazione chi perde
+                                        // esce dal torneo: il nome va barrato.
+                                        'barra' => true,
                                     ])
                                 @endforeach
                             </div>
@@ -117,11 +120,26 @@
 
     /* ---- card partita ---- */
     #torneo-partite .partite-list{display:flex;flex-direction:column;}
-    #torneo-partite .matches{display:flex;flex-direction:row;align-items:center;cursor:pointer;
-        margin-bottom:8px;border-radius:6px;}
+    /* Impaginazione "A": data e luogo sopra, squadre al centro,
+       marcatori sotto. La card e' una colonna, non piu' una riga. */
+    #torneo-partite .matches{display:flex;flex-direction:column;cursor:pointer;
+        margin-bottom:8px;border-radius:6px;padding:7px 10px;min-width:0;}
     #torneo-partite .matches:nth-child(odd){background:#ececec;}
     #torneo-partite .matches:nth-child(even){background:#f6f6f6;}
-    #torneo-partite .gara-bracket{flex:1;padding:6px 14px;border-right:1px solid #999;min-width:0;}
+    #torneo-partite .mt-quando{font-size:12px;color:#6b7a72;margin-bottom:5px;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    #torneo-partite .mt-corpo{display:flex;flex-direction:row;align-items:center;min-width:0;}
+    #torneo-partite .mt-gol{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:6px;
+        padding-top:5px;border-top:1px dotted #bbb;font-size:12px;color:#6b7a72;min-width:0;}
+    #torneo-partite .mt-gol-voce{display:inline-flex;align-items:center;gap:4px;
+        white-space:nowrap;max-width:100%;}
+    #torneo-partite .mt-gol-min{font-variant-numeric:tabular-nums;min-width:26px;
+        text-align:right;color:#8b968f;}
+    #torneo-partite .mt-gol-fl{width:15px;height:10px;object-fit:cover;border-radius:1px;
+        flex:none;box-shadow:0 1px 1px rgba(0,0,0,.2);}
+    #torneo-partite .mt-gol-nome{overflow:hidden;text-overflow:ellipsis;color:#16231d;}
+    #torneo-partite .mt-gol-nota{color:#8b968f;font-style:italic;}
+    #torneo-partite .gara-bracket{flex:1;padding:2px 12px 2px 2px;border-right:1px solid #999;min-width:0;}
     #torneo-partite .gara-bracket .home,#torneo-partite .gara-bracket .away{display:flex;
         flex-direction:row;align-items:center;margin:4px 0;min-width:0;}
     #torneo-partite .gara-bracket .flag{width:25px;height:25px;border-radius:50%;object-fit:cover;

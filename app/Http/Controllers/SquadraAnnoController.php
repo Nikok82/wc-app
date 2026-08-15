@@ -128,7 +128,17 @@ class SquadraAnnoController extends Controller
             ->orderBy('match_date')
             ->get();
 
-        return view('squadra.partials.partite', compact('partite', 'code'));
+        // Bandiera dell'avversario, dell'epoca del torneo.
+        foreach ($partite as $p) {
+            $p->opponent_flag = $this->wc->bandieraUrl($p->opponent_code, $tid);
+        }
+
+        $gol = $this->wc->golPerPartite($partite->pluck('match_id')->all());
+
+        $titoloGruppo = ($partite->first()->tournament_name ?? '') ?: $year;
+
+        return view('squadra_anno.partials.partite',
+            compact('partite', 'gol', 'code', 'titoloGruppo'));
     }
 
     /** Tab Convocati: rosa + allenatori + statistiche della spedizione. */

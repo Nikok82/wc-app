@@ -89,12 +89,51 @@ class SquadraController extends Controller
     public function partite(string $code)
     {
         $code = strtoupper($code);
+        $wc   = app(\App\Services\WcService::class);
 
         $partite = \App\Models\TeamAppearance::where('team_code', $code)
             ->orderBy('match_date')
             ->get();
 
-        return view('squadra.partials.partite', compact('partite', 'code'));
+        $gol = $wc->golPerPartite($partite->pluck('match_id')->all());
+
+        // Le partite sono raggruppate per edizione, come nella pagina
+        // squadra-anno: su piu' di ottanta incontri un elenco piatto non
+        // dice piu' nulla.
+        $gruppi = [];
+        foreach ($partite as $p) {
+            $titolo = $p->tournament_name ?: $p->tournament_id;
+
+            // In casa la squadra sta a sinistra, in trasferta a destra:
+            // l'ordine e' quello reale della partita, non quello del
+            // punto di vista della squadra.
+            $casa = (bool) $p->home_team;
+
+            $meta = collect([
+                $p->match_date ? $p->match_date->format('d/m/Y') : null,
+                $p->stage_name ? mb_convert_case($p->stage_name, MB_CASE_TITLE) : null,
+                $p->stadium_name ?? null,
+            ])->filter()->implode(' · ');
+
+            $gruppi[$titolo][] = [
+                'match_id' => $p->match_id,
+                'meta'     => $meta,
+                'casa' => [
+                    'nome' => $casa ? $p->team_name : $p->opponent_name,
+                    'code' => $casa ? $p->team_code : $p->opponent_code,
+                    'gol'  => $casa ? $p->goals_for : $p->goals_against,
+                    'flag' => $wc->bandieraUrl($casa ? $p->team_code : $p->opponent_code, $p->tournament_id),
+                ],
+                'ospite' => [
+                    'nome' => $casa ? $p->opponent_name : $p->team_name,
+                    'code' => $casa ? $p->opponent_code : $p->team_code,
+                    'gol'  => $casa ? $p->goals_against : $p->goals_for,
+                    'flag' => $wc->bandieraUrl($casa ? $p->opponent_code : $p->team_code, $p->tournament_id),
+                ],
+            ];
+        }
+
+        return view('squadra.partials.partite', compact('gruppi', 'gol', 'code'));
     }
 
     public function presenze(string $code)
