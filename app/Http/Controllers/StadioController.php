@@ -128,8 +128,13 @@ class StadioController extends Controller
             'n'    => $g->count(),
         ])->sortBy('anno')->values();
 
+        /* ---- C1 (15/08): stessa impaginazione della scheda squadra ---- */
+        $card = $this->wc->gruppiPartite($partite->pluck('match_id')->all());
+
         return [
             's'       => $s,
+            'gruppi'  => $card['gruppi'],
+            'gol'     => $card['gol'],
             'nome'    => $s->stadium_name,
             'flag'    => $this->wc->bandieraUrl($s->country_name, null),
             'partite' => $partite,

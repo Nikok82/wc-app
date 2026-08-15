@@ -16,6 +16,13 @@
                          flex:none; padding-top:2px; }
     .scheda .riga .val { flex:1; font-weight:500; }
 
+    /* C1 (15/08): le partite delle schede dimostrative usano le card della
+       scheda squadra, che vogliono tutta la larghezza disponibile. La riga
+       che le contiene passa quindi a due piani: etichetta sopra, card sotto. */
+    .scheda .riga.riga-partite { flex-wrap:wrap; }
+    .scheda .riga.riga-partite .val { flex:1 1 100%; }
+    .scheda .riga.riga-partite .pb { margin-top:8px; }
+
     .scheda table.gare { width:100%; border-collapse:collapse; margin-top:6px; }
     .scheda table.gare th { text-align:left; color:var(--muted, #6b7a72);
                             text-transform:uppercase; font-size:11px;

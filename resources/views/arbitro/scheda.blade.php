@@ -37,30 +37,16 @@
         </span>
     </div>
 
-    <div class="riga">
+    <div class="riga riga-partite">
         <span class="lbl">Gare arbitrate</span>
         <span class="val">
-            @if ($gare->isEmpty())
+            @if (empty($gruppi))
                 Nessuna partita trovata.
             @else
-                <table class="gare">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Fase</th>
-                            <th>Partita</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($gare as $gara)
-                            <tr>
-                                <td class="data-cell">{{ $gara['data'] }}</td>
-                                <td>{{ $gara['stage'] }}</td>
-                                <td>@include('partials.match-cell', ['match' => $gara['match'], 'matchId' => $gara['match_id']])</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                {{-- C1 (15/08): stessa impaginazione della tab Partite della
+                     scheda squadra (scheda a due lati, bandiere incolonnate
+                     ai lati, marcatori sotto), raggruppata per edizione. --}}
+                @include('squadra.partials.partite', ['gruppi' => $gruppi, 'gol' => $gol])
             @endif
         </span>
     </div>

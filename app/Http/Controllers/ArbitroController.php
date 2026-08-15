@@ -122,6 +122,9 @@ class ArbitroController extends Controller
                 'match_id' => $a->match_id,
             ]);
 
+        /* ---- C1 (15/08): stessa impaginazione della scheda squadra ---- */
+        $partite = $this->wc->gruppiPartite($gare->pluck('match_id')->all());
+
         /* ---- Bandiere in alto: dalla nazionalita' (country_name) ---- */
         $bandiere = $appointments
             ->map(fn ($a) => $this->wc->bandieraUrl($a->country_name, $a->tournament_id))
@@ -129,6 +132,8 @@ class ArbitroController extends Controller
 
         return [
             'r'        => $r,
+            'gruppi'   => $partite['gruppi'],
+            'gol'      => $partite['gol'],
             'nome'     => trim(($r->given_name ?? '').' '.($r->family_name ?? '')),
             'bandiere' => $bandiere,
             'tornei'   => $tornei,

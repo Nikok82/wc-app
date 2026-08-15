@@ -1,4 +1,9 @@
-{{-- Tab Partite della pagina squadra.
+{{-- Impaginazione "B" delle partite (scheda a due lati), condivisa.
+     Usata dalla tab Partite della pagina squadra e, dal 15/08 (C1), dalle
+     schede dimostrative: giocatore, allenatore, arbitro, stadio.
+     Chi include non deve sapere nulla del resto: riceve $gruppi e $gol.
+
+     Tab Partite della pagina squadra.
      Impaginazione "B" (scheda a due lati) raggruppata per edizione come
      nella "C". La squadra perdente non viene barrata.
      Variabili: $gruppi (etichetta => partite), $gol (match_id => marcatori) --}}
@@ -43,6 +48,14 @@
                             </div>
                         </a>
                         @include('partials.gol-partita', ['gol' => $gol[$p['match_id']] ?? []])
+                        {{-- C1: riga facoltativa sotto il punteggio. Nella tab
+                             Partite della squadra non e' mai valorizzata; nelle
+                             schede dimostrative porta cio' che la vecchia
+                             tabella teneva in colonne (maglia, minutaggio, gol,
+                             ruolo arbitrale). --}}
+                        @if (!empty($p['extra']))
+                            <div class="pb-extra">{{ $p['extra'] }}</div>
+                        @endif
                     </div>
                 @endforeach
             </div>
@@ -75,6 +88,8 @@
         .pb-nome-dx{text-align:left;}
         .pb-pt{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;
             white-space:nowrap;padding:0 2px;}
+        .pb-extra{margin-top:6px;padding-top:5px;border-top:1px dotted #d5ded8;
+            font-size:12px;color:var(--muted);}
         @media (max-width:420px){
             .pb-mid{grid-template-columns:26px minmax(0,1fr) auto minmax(0,1fr) 26px;gap:5px 7px;}
             .pb-fl{width:26px;}

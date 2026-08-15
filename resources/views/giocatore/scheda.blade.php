@@ -63,41 +63,16 @@
         </style>
     @endif
 
-    <div class="riga riga-gare">
+    <div class="riga riga-partite">
         <span class="lbl">Gare giocate</span>
         <span class="val">
-            @if ($gare->isEmpty())
+            @if (empty($gruppi))
                 Nessuna partita trovata.
             @else
-                <table class="gare gare-g">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Fase</th>
-                            <th>Partita</th>
-                            <th>Maglia</th>
-                            <th>Minutaggio</th>
-                            <th>Gol</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @php $annoSep = null; $nGara = 0; @endphp
-                        @foreach ($gare as $gara)
-                            @if (!empty($gara['anno']) && $gara['anno'] !== $annoSep)
-                                @php $annoSep = $gara['anno']; $nGara = 0; @endphp
-                                <tr class="anno-sep"><td colspan="6">{{ $annoSep }}</td></tr>
-                            @endif
-                            <tr class="gara{{ $nGara++ % 2 === 1 ? ' alt' : '' }}">
-                                <td class="data-cell">{{ $gara['data'] }}</td>
-                                <td>{{ $gara['stage'] }}</td>
-                                <td>@include('partials.match-cell', ['match' => $gara['match'], 'matchId' => $gara['match_id']])</td>
-                                <td>{{ $gara['maglia'] }}</td>
-                                <td>{{ $gara['minutaggio'] }}</td>
-                                <td>{{ $gara['gol'] }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                {{-- C1 (15/08): stessa impaginazione della tab Partite della
+                     scheda squadra (scheda a due lati, bandiere incolonnate
+                     ai lati, marcatori sotto), raggruppata per edizione. --}}
+                @include('squadra.partials.partite', ['gruppi' => $gruppi, 'gol' => $gol])
             @endif
         </span>
     </div>

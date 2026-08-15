@@ -67,34 +67,16 @@
         </div>
     @endif
 
-    <div class="riga">
+    <div class="riga riga-partite">
         <span class="lbl">Partite giocate</span>
         <span class="val">
-            @if ($partite->isEmpty())
+            @if (empty($gruppi))
                 Nessuna partita trovata.
             @else
-                <table class="gare">
-                    <thead>
-                        <tr>
-                            <th>Mondiale</th>
-                            <th>Data</th>
-                            <th>Fase</th>
-                            <th>Partita</th>
-                            <th>Risultato</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($partite as $p)
-                            <tr>
-                                <td class="data-cell"><a href="{{ route('torneo.show', $p['tid']) }}">{{ $p['anno'] }}</a></td>
-                                <td class="data-cell">{{ $p['data'] }}</td>
-                                <td>{{ $p['stage'] }}</td>
-                                <td>@include('partials.match-cell', ['match' => $p['match'], 'matchId' => $p['match_id']])</td>
-                                <td class="data-cell">{{ $p['score'] }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                {{-- C1 (15/08): stessa impaginazione della tab Partite della
+                     scheda squadra (scheda a due lati, bandiere incolonnate
+                     ai lati, marcatori sotto), raggruppata per edizione. --}}
+                @include('squadra.partials.partite', ['gruppi' => $gruppi, 'gol' => $gol])
             @endif
         </span>
     </div>

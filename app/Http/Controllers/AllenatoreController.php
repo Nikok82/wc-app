@@ -123,6 +123,9 @@ class AllenatoreController extends Controller
                 'match_id' => $a->match_id,
             ]);
 
+        /* ---- C1 (15/08): stessa impaginazione della scheda squadra ---- */
+        $partite = $this->wc->gruppiPartite($gare->pluck('match_id')->all());
+
         /* ---- Bandiere in alto: dalla nazionalita' (country_name) ---- */
         $bandiere = $appointments
             ->map(fn ($a) => $this->wc->bandieraUrl($a->country_name, $a->tournament_id))
@@ -130,6 +133,8 @@ class AllenatoreController extends Controller
 
         return [
             'm'        => $m,
+            'gruppi'   => $partite['gruppi'],
+            'gol'      => $partite['gol'],
             // Se il manager è stato matchato con un giocatore (awc_managers.player_id),
             // la scheda mostra anche il ruolo "Giocatore" con link alla scheda giocatore.
             'playerId' => $m->player_id ?: null,

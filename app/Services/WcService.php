@@ -230,6 +230,74 @@ class WcService
         return $out;
     }
 
+    /**
+     * C1 (15/08) — Partite pronte per l'impaginazione "scheda a due lati"
+     * di squadra/partials/partite.blade.php, a partire da un elenco di
+     * match_id. Serve alle schede dimostrative (giocatore, allenatore,
+     * arbitro, stadio), che prima mostravano una tabella.
+     *
+     * Il raggruppamento e' per edizione: e' l'unico che regge sia le due
+     * partite di un arbitro sia le ottanta di uno stadio. L'etichetta e'
+     * "Paese Anno" (da awc_tournaments), la stessa forma usata nel menu.
+     *
+     * @param  array  $matchIds
+     * @param  array  $extra  match_id => riga aggiuntiva sotto il punteggio
+     *                        (es. maglia e minutaggio nella scheda giocatore)
+     * @return array  ['gruppi' => etichetta => righe, 'gol' => match_id => marcatori]
+     */
+    public function gruppiPartite(array $matchIds, array $extra = []): array
+    {
+        $matchIds = array_values(array_unique(array_filter($matchIds)));
+        if (empty($matchIds)) {
+            return ['gruppi' => [], 'gol' => []];
+        }
+
+        $partite = DB::table('awc_matches')
+            ->whereIn('match_id', $matchIds)
+            ->orderBy('match_date')
+            ->orderBy('match_id')
+            ->get();
+
+        // I tornei sono ventitre: una sola query e nessun rischio di N+1.
+        $tornei = DB::table('awc_tournaments')->get()->keyBy('tournament_id');
+
+        $gruppi = [];
+        foreach ($partite as $m) {
+            $anno = $this->anno($m->tournament_id);
+            $t    = $tornei[$m->tournament_id] ?? null;
+
+            $titolo = $t
+                ? trim(($t->host_country ?? '').' '.($t->year ?? $anno))
+                : ('Mondiale '.$anno);
+
+            $meta = collect([
+                $m->match_date ? date('d/m/Y', strtotime($m->match_date)) : null,
+                $m->stage_name ? mb_convert_case($m->stage_name, MB_CASE_TITLE) : null,
+                $m->stadium_name ?: null,
+            ])->filter()->implode(' · ');
+
+            $gruppi[$titolo][] = [
+                'match_id' => $m->match_id,
+                'meta'     => $meta,
+                'extra'    => $extra[$m->match_id] ?? null,
+                'casa' => [
+                    'nome' => $m->home_team_name,
+                    'code' => $m->home_team_code,
+                    'gol'  => $m->home_team_score,
+                    'flag' => $this->bandieraUrl($m->home_team_code, $m->tournament_id),
+                ],
+                'ospite' => [
+                    'nome' => $m->away_team_name,
+                    'code' => $m->away_team_code,
+                    'gol'  => $m->away_team_score,
+                    'flag' => $this->bandieraUrl($m->away_team_code, $m->tournament_id),
+                ],
+            ];
+        }
+
+        return ['gruppi' => $gruppi, 'gol' => $this->golPerPartite($matchIds)];
+    }
+
     /* ----------------------------------------------------------------- */
     /*  Squadre di un torneo (awc_squads)                                 */
     /* ----------------------------------------------------------------- */

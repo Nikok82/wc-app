@@ -184,6 +184,19 @@ class GiocatoreController extends Controller
             ];
         });
 
+        /* ---- C1 (15/08): le partite passano all'impaginazione a due lati
+                della scheda squadra. Cio' che la vecchia tabella teneva in
+                colonne (maglia, minutaggio, gol) diventa la riga 'extra'
+                sotto il punteggio: nella card non c'e' spazio per sei
+                colonne, ma il dato non va perso. ---- */
+        $extra = $gare->mapWithKeys(fn ($g) => [$g['match_id'] => collect([
+            $g['maglia'] ? 'Maglia '.$g['maglia'] : null,
+            $g['minutaggio'] ?: null,
+            $g['gol'] ?: null,
+        ])->filter()->implode(' · ')])->all();
+
+        $partite = $this->wc->gruppiPartite($matchIds->all(), $extra);
+
         /* ---- Ruolo (piu' ruoli separati da virgola) ---- */
         $ruoli = [];
         foreach (['portiere' => 'Portiere', 'difensore' => 'Difensore',
@@ -243,6 +256,8 @@ class GiocatoreController extends Controller
 
         return [
             'club'     => $club,
+            'gruppi'   => $partite['gruppi'],
+            'gol'      => $partite['gol'],
             'g'        => $g,
             'nome'     => trim(($g->given_name ?? '').' '.($g->family_name ?? '')),
             'nascita'  => $g->birth_date ? $g->birth_date->format('d/m/Y') : '',
