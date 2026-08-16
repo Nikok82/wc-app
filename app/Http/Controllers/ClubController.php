@@ -35,12 +35,29 @@ class ClubController extends Controller
         $stato = trim((string) $request->query('stato', ''));
         $q     = trim((string) $request->query('q', ''));
 
-        $items = DB::table('awc_clubs')
+        // ids=1 mostra l'id accanto al nome. Serve alla caccia ai club
+        // doppioni: senza, per compilare l'elenco delle unioni bisogna
+        // aprire ogni scheda e leggere l'indirizzo. Fuori da quel lavoro
+        // basta non passare il parametro e non si vede nulla.
+        $mostraId = $request->query('ids') === '1';
+
+        $base = DB::table('awc_clubs')
             ->when($stato !== '', fn ($query) => $query->where('stato', $stato))
             ->when($q !== '', fn ($query) => $query->where('club_name', 'like', '%'.$q.'%'))
             ->orderBy('club_name')
-            ->orderBy('id')
-            ->paginate(self::PER_PAGINA)
+            ->orderBy('id');
+
+        // Filtrando per nazione l'elenco esce tutto in una schermata: per
+        // confrontare fra loro i club di uno stesso paese e scovare i
+        // doppioni, sfogliare dieci per volta e' inutilizzabile. Si resta
+        // sul paginatore (la view non cambia) alzando le righe per pagina
+        // al totale: lastPage() diventa 1 e le frecce spariscono da sole.
+        $perPagina = $stato !== ''
+            ? max(1, (clone $base)->count())
+            : self::PER_PAGINA;
+
+        $items = $base
+            ->paginate($perPagina)
             ->withQueryString()
             ->through(fn ($c) => [
                 'id'    => $c->id,
@@ -60,7 +77,7 @@ class ClubController extends Controller
             ->orderBy('stato')
             ->pluck('stato');
 
-        return view('club.index', compact('items', 'nazioni', 'stato', 'q'));
+        return view('club.index', compact('items', 'nazioni', 'stato', 'q', 'mostraId'));
     }
 
     /** Scheda del singolo club. */

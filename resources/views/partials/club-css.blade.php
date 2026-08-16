@@ -43,6 +43,15 @@
                     border:1px solid #d3dbd7;
                     clip-path:polygon(50% 0,100% 18%,100% 62%,50% 100%,0 62%,0 18%); }
 
+    /* ---- modalita' id (?ids=1), per la caccia ai doppioni ---- */
+    .elenco .voce .club-id { flex:none; font-size:11px; font-weight:700;
+                    font-variant-numeric:tabular-nums; color:#6b7a72;
+                    background:#eef2ef; border:1px solid #dfe6e2;
+                    border-radius:5px; padding:1px 5px; min-width:34px;
+                    text-align:center; }
+    .club-modoid, .club-tutti { color:var(--muted); font-size:13px; margin:0 0 10px; }
+    .club-tutti { margin:12px 0 0; text-align:center; }
+
     /* ---- scheda club ---- */
     .club-head { display:flex; align-items:center; gap:16px; margin-bottom:6px; }
     .club-head .stemma { width:60px; height:60px; }

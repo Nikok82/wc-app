@@ -11,6 +11,11 @@
          pagina risultante e' un indirizzo condivisibile e la paginazione
          si porta dietro il filtro (withQueryString nel controller). --}}
     <form class="barra-ricerca" method="get" action="{{ route('club.index') }}">
+        {{-- Senza questo, filtrando per nazione si perderebbe ids=1 e gli id
+             sparirebbero a meta' lavoro. --}}
+        @if ($mostraId)
+            <input type="hidden" name="ids" value="1">
+        @endif
         <label class="per-page">
             Nazione:
             <select name="stato" onchange="this.form.submit()">
@@ -27,6 +32,13 @@
         </button>
     </form>
 
+    @if ($mostraId)
+        <p class="club-modoid">
+            Modalità id attiva: accanto a ogni club compare il suo id.
+            <a href="{{ route('club.index', array_filter(['stato' => $stato, 'q' => $q])) }}">Nascondi gli id</a>
+        </p>
+    @endif
+
     <div id="tab-content">
         @if ($items->isEmpty())
             <p>Nessun club corrisponde alla ricerca.</p>
@@ -42,6 +54,9 @@
                                 <span class="flag-riga vuota"></span>
                             @endif
                             @include('partials.stemma-club', ['logo' => $c['logo'], 'lato' => 16, 'alt' => $c['nome']])
+                            @if ($mostraId)
+                                <span class="club-id">{{ $c['id'] }}</span>
+                            @endif
                             {{ $c['nome'] }}
                         </span>
                         <span class="extra">{{ $c['stato'] }}</span>
@@ -50,6 +65,11 @@
             </div>
         @endif
     </div>
+
+    @if ($stato !== '' && $items->total() > 0)
+        <p class="club-tutti">{{ $items->total() }}
+            {{ $items->total() === 1 ? 'club' : 'club' }} di {{ $stato }}, elencati tutti in una schermata.</p>
+    @endif
 
     @if ($items->lastPage() > 1)
         <div class="paginazione">
