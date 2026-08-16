@@ -35,6 +35,13 @@
     .paginazione .pg.disab { opacity:.35; }
     .paginazione .pg-stato { color:var(--muted); font-size:14px; }
 
+    /* ---- nomi d'epoca ---- */
+    .elenco .voce .club-testi { display:flex; flex-direction:column; min-width:0; }
+    .club-epoca { display:block; font-size:11.5px; font-weight:400; line-height:1.35;
+                  color:var(--muted); font-style:italic; overflow:hidden;
+                  text-overflow:ellipsis; }
+    .club-head .club-epoca { font-size:12.5px; margin-top:2px; }
+
     /* ---- stemma e segnaposto ---- */
     .stemma { flex:none; object-fit:contain; border-radius:3px; background:#fff; }
     /* Segnaposto dei 538 stemmi ancora da reperire: uno scudetto grigio

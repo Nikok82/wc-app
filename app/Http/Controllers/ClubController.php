@@ -100,10 +100,119 @@ class ClubController extends Controller
             ->where(fn ($x) => $x->whereNull('logo')->orWhereRaw("TRIM(logo) = ''"))
             ->count();
 
+        // Nomi d'epoca dei soli club della schermata: e' la ragione per cui
+        // "JE Tizi-Ouzou" non si trovava, e cercarlo qui e' il primo posto
+        // dove uno guarda.
+        $epoca = $this->nomiEpoca(
+            $items->pluck('id')->all(),
+            $items->pluck('nome', 'id')->all()
+        );
+
         return view('club.index', compact(
             'items', 'nazioni', 'stato', 'q', 'mostraId',
-            'senzaNazione', 'nSenzaNazione', 'senzaStemma'
+            'senzaNazione', 'nSenzaNazione', 'senzaStemma', 'epoca'
         ));
+    }
+
+    /**
+     * Nomi d'epoca dei club indicati, ricavati dalle rose.
+     *
+     * Il catalogo (awc_clubs.club_name) porta il titolo della pagina wiki,
+     * cioe' il nome di oggi; le rose (awc_squads.team_past) portano il nome
+     * in uso nell'anno della convocazione. Quando i due non coincidono, il
+     * secondo e' un nome d'epoca: "JS Kabylie" a catalogo, "JE Tizi-Ouzou"
+     * nelle rose del 1982. Senza mostrarlo, chi legge una rosa non trova
+     * quel club da nessuna parte.
+     *
+     * Le diciture scritte a mano in resources/data/club-nomi-epoca.php
+     * hanno la precedenza: servono per i casi che il database non sa, come
+     * le fusioni fra societa'.
+     *
+     * @param  array  $ids  id dei club
+     * @param  array  $nomi id => nome a catalogo
+     * @return array  id => testo pronto da stampare
+     */
+    public function nomiEpoca(array $ids, array $nomi): array
+    {
+        $manuali = $this->diciturePersonali();
+
+        $ids = array_values(array_filter($ids));
+        if (empty($ids)) {
+            return [];
+        }
+
+        $righe = DB::table('awc_squads')
+            ->select('team_past_id', 'team_past', 'tournament_id')
+            ->whereIn('team_past_id', $ids)
+            ->whereNotNull('team_past')
+            ->where('team_past', '<>', '')
+            ->distinct()
+            ->get();
+
+        // Raccolta: per ogni club, ogni grafia diversa dal nome a catalogo
+        // con gli anni in cui compare.
+        $per = [];
+        foreach ($righe as $r) {
+            $catalogo = $nomi[$r->team_past_id] ?? '';
+            if ($this->stessoNome($r->team_past, $catalogo)) {
+                continue;
+            }
+
+            $anno = $this->wc->anno($r->tournament_id);
+            $chiave = mb_strtolower(trim($r->team_past));
+
+            if (! isset($per[$r->team_past_id][$chiave])) {
+                $per[$r->team_past_id][$chiave] = ['nome' => trim($r->team_past), 'anni' => []];
+            }
+            if ($anno) {
+                $per[$r->team_past_id][$chiave]['anni'][] = (int) $anno;
+            }
+        }
+
+        $esito = [];
+        foreach ($per as $id => $voci) {
+            $pezzi = [];
+            foreach ($voci as $v) {
+                $anni = array_unique($v['anni']);
+                sort($anni);
+                // Un anno solo resta un anno; piu' anni diventano un
+                // intervallo: "1982-1986", non l'elenco di tutte le edizioni.
+                $quando = ! $anni ? '' : (count($anni) === 1
+                    ? (string) $anni[0]
+                    : $anni[0].'-'.end($anni));
+
+                $pezzi[] = $v['nome'].($quando ? ' ('.$quando.')' : '');
+            }
+            sort($pezzi);
+            $esito[$id] = implode(' · ', $pezzi);
+        }
+
+        // Le diciture scritte a mano sostituiscono quelle ricavate; una
+        // stringa vuota nasconde la riga.
+        foreach ($manuali as $id => $testo) {
+            if (in_array($id, $ids)) {
+                $esito[$id] = $testo;
+            }
+        }
+
+        return array_filter($esito, fn ($t) => trim((string) $t) !== '');
+    }
+
+    /** Confronto tollerante fra due grafie di un nome di club. */
+    protected function stessoNome(?string $a, ?string $b): bool
+    {
+        $norm = fn ($x) => preg_replace('/[^a-z0-9]/u', '',
+            mb_strtolower(trim((string) $x)));
+
+        return $norm($a) === $norm($b);
+    }
+
+    /** Diciture d'epoca scritte a mano, se il file esiste. */
+    protected function diciturePersonali(): array
+    {
+        $file = resource_path('data/club-nomi-epoca.php');
+
+        return is_file($file) ? (array) require $file : [];
     }
 
     /** Scheda del singolo club. */
@@ -147,12 +256,15 @@ class ClubController extends Controller
             ->sortBy('anno')
             ->values();
 
+        $epoca = $this->nomiEpoca([$c->id], [$c->id => $c->club_name]);
+
         return view('club.show', [
             'club'     => $c,
             'nome'     => $c->club_name,
             'flag'     => $this->wc->bandieraUrl($c->stato, null),
             'logo'     => $this->wc->logoClubUrl($c->logo),
             'mondiali' => $mondiali,
+            'epoca'    => $epoca[$c->id] ?? null,
             'totale'   => $righe->pluck('player_id')->filter()->unique()->count(),
         ]);
     }

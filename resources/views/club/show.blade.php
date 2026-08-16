@@ -7,6 +7,13 @@
         @include('partials.stemma-club', ['logo' => $logo, 'lato' => 60, 'alt' => $nome])
         <div>
             <h1>{{ $nome }}</h1>
+            @if ($epoca)
+                {{-- Come il club era chiamato all'epoca delle convocazioni.
+                     Ricavato dalle rose, o scritto a mano in
+                     resources/data/club-nomi-epoca.php per i casi che il
+                     database non puo' sapere (le fusioni fra societa'). --}}
+                <small class="club-epoca">{{ $epoca }}</small>
+            @endif
             <div class="club-stato">
                 @if ($flag)
                     <img src="{{ $flag }}" alt="{{ $club->stato }}" onerror="this.style.display='none'">

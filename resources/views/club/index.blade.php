@@ -63,7 +63,15 @@
                             @if ($mostraId)
                                 <span class="club-id">{{ $c['id'] }}</span>
                             @endif
-                            {{ $c['nome'] }}
+                            <span class="club-testi">
+                                {{ $c['nome'] }}
+                                {{-- Il nome in uso all'epoca delle convocazioni:
+                                     senza, chi legge "JE Tizi-Ouzou" in una rosa
+                                     non trova quel club da nessuna parte. --}}
+                                @if (!empty($epoca[$c['id']]))
+                                    <small class="club-epoca">{{ $epoca[$c['id']] }}</small>
+                                @endif
+                            </span>
                         </span>
                         <span class="extra">{{ $c['stato'] }}</span>
                     </a>
