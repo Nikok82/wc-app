@@ -46,8 +46,13 @@
                                  loading="lazy" onerror="this.style.display='none'">
                         @endif
                         {{-- D1: il club porta alla sua scheda (sezione C2) --}}
+                        @php
+                            $diverso = !empty($c['catalogo'])
+                                && mb_strtolower(trim($c['catalogo'])) !== mb_strtolower(trim($c['nome']));
+                        @endphp
                         @if (!empty($c['id']))
-                            <a class="club-nome" href="{{ route('club.show', $c['id']) }}">{{ $c['nome'] }}</a>
+                            <a class="club-nome" href="{{ route('club.show', $c['id']) }}"
+                               title="{{ $diverso ? 'A catalogo: '.$c['catalogo'] : 'Scheda del club' }}">{{ $c['nome'] }}@if($diverso)<span class="club-alias">*</span>@endif</a>
                         @else
                             <span class="club-nome">{{ $c['nome'] }}</span>
                         @endif
@@ -64,6 +69,7 @@
                 white-space:nowrap;max-width:100%;}
             .club-voce img{flex:none;border-radius:2px;}
             .club-nome{overflow:hidden;text-overflow:ellipsis;}
+            .club-alias{color:var(--accent);font-weight:700;cursor:help;}
             .club-anno{color:var(--muted);font-size:12px;}
         </style>
     @endif

@@ -55,13 +55,38 @@
                         <td class="c-num">{{ $c['gol'] }}</td>
                         <td class="c-club">
                             @if ($c['club'])
-                                <span class="club-cell">
-                                    @if ($c['club_logo'])
-                                        <img src="{{ $c['club_logo'] }}" alt="" width="16" height="16"
-                                             loading="lazy" onerror="this.style.display='none'">
-                                    @endif
-                                    <span>{{ $c['club'] }}</span>
-                                </span>
+                                @php
+                                    // Nella rosa compare la grafia dell'epoca. Se il
+                                    // catalogo usa un nome diverso (JE Tizi-Ouzou qui,
+                                    // JS Kabylie li') il suggerimento lo dice: cosi' una
+                                    // stranezza si riconosce senza aprire la scheda.
+                                    $diverso = $c['club_catalogo']
+                                        && mb_strtolower(trim($c['club_catalogo'])) !== mb_strtolower(trim($c['club']));
+                                    $titolo = $diverso
+                                        ? 'A catalogo: '.$c['club_catalogo']
+                                        : 'Scheda del club';
+                                @endphp
+                                @if ($c['club_id'])
+                                    <a class="club-cell" href="{{ route('club.show', $c['club_id']) }}"
+                                       title="{{ $titolo }}">
+                                        @if ($c['club_logo'])
+                                            <img src="{{ $c['club_logo'] }}" alt="" width="16" height="16"
+                                                 loading="lazy" onerror="this.style.display='none'">
+                                        @endif
+                                        <span>{{ $c['club'] }}</span>
+                                        @if ($diverso)
+                                            <span class="club-alias" aria-hidden="true">*</span>
+                                        @endif
+                                    </a>
+                                @else
+                                    <span class="club-cell">
+                                        @if ($c['club_logo'])
+                                            <img src="{{ $c['club_logo'] }}" alt="" width="16" height="16"
+                                                 loading="lazy" onerror="this.style.display='none'">
+                                        @endif
+                                        <span>{{ $c['club'] }}</span>
+                                    </span>
+                                @endif
                             @else
                                 —
                             @endif
@@ -119,7 +144,13 @@
         .conv-table .c-ico a{color:var(--accent);display:inline-flex;}
         .conv-table .c-cognome{font-weight:700;}
         .conv-table .c-nascita{white-space:nowrap;}
-        .conv-table .club-cell{display:inline-flex;align-items:center;gap:6px;}
+        .conv-table .club-cell{display:inline-flex;align-items:center;gap:6px;
+            color:var(--ink);text-decoration:none;}
+        .conv-table a.club-cell:hover{color:var(--accent);text-decoration:underline;}
+        /* L'asterisco segna i club che a catalogo hanno un altro nome:
+           serve a riconoscere al volo i casi come JE Tizi-Ouzou. */
+        .conv-table .club-alias{color:var(--accent);font-weight:700;
+            cursor:help;line-height:1;}
         .conv-table .club-cell img{width:16px;height:16px;object-fit:contain;flex:none;}
         .conv-sez{font-size:1.02rem;font-weight:700;color:#0f6c14;margin:22px 0 10px;
             padding-bottom:6px;border-bottom:2px solid #57c785;}

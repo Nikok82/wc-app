@@ -255,6 +255,9 @@ class GiocatoreController extends Controller
                 // Resta null per le righe che hanno solo il nome scritto a
                 // mano in team_past, senza corrispondenza in awc_clubs.
                 'id'   => $c->id ?? null,
+                // Nome a catalogo: se diverso da quello mostrato (che e' la
+                // grafia dell'epoca) il suggerimento lo dice.
+                'catalogo' => $c->club_name ?? null,
             ];
         })->filter(fn ($c) => ! empty($c['nome']))->values()->all();
 

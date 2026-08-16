@@ -205,6 +205,15 @@ class SquadraAnnoController extends Controller
                 'club'       => $r->team_past ?: null,
                 'club_logo'  => $this->wc->logoClubUrl($club->logo ?? null),
                 'club_stato' => $club->stato ?? null,
+                // Link alla scheda del club (16/08). Resta null per le righe
+                // di rosa senza corrispondenza in awc_clubs: li' c'e' solo il
+                // nome scritto in team_past e non si sa dove puntare.
+                'club_id'    => $club->id ?? null,
+                // Nome del club nel catalogo: nelle rose compare la grafia
+                // dell'epoca, e quando le due divergono (JE Tizi-Ouzou nella
+                // rosa, JS Kabylie a catalogo) il suggerimento lo dice, cosi'
+                // una stranezza si riconosce senza aprire la scheda.
+                'club_catalogo' => $club->club_name ?? null,
             ];
         });
 
