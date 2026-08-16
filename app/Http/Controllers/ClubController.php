@@ -25,6 +25,9 @@ class ClubController extends Controller
     /** Quanti club per pagina nell'elenco (deciso da Niko il 15/08). */
     protected const PER_PAGINA = 10;
 
+    /** Valore della tendina che seleziona i club senza nazione assegnata. */
+    public const SENZA_NAZIONE = '@senza';
+
     public function __construct(protected WcService $wc)
     {
     }
@@ -41,8 +44,16 @@ class ClubController extends Controller
         // basta non passare il parametro e non si vede nulla.
         $mostraId = $request->query('ids') === '1';
 
+        // Valore speciale della tendina: i club senza nazione assegnata.
+        // Sono invisibili a qualsiasi filtro normale, quindi senza una voce
+        // apposta non si scoprirebbero se non interrogando il database.
+        $senzaNazione = $stato === self::SENZA_NAZIONE;
+
         $base = DB::table('awc_clubs')
-            ->when($stato !== '', fn ($query) => $query->where('stato', $stato))
+            ->when($senzaNazione, fn ($query) => $query->where(
+                fn ($x) => $x->whereNull('stato')->orWhereRaw("TRIM(stato) = ''")
+            ))
+            ->when($stato !== '' && ! $senzaNazione, fn ($query) => $query->where('stato', $stato))
             ->when($q !== '', fn ($query) => $query->where('club_name', 'like', '%'.$q.'%'))
             ->orderBy('club_name')
             ->orderBy('id');
@@ -77,7 +88,22 @@ class ClubController extends Controller
             ->orderBy('stato')
             ->pluck('stato');
 
-        return view('club.index', compact('items', 'nazioni', 'stato', 'q', 'mostraId'));
+        // Quanti club senza nazione esistono in tutto: il numero sta accanto
+        // alla voce della tendina, cosi' si sa se vale la pena aprirla.
+        $nSenzaNazione = DB::table('awc_clubs')
+            ->where(fn ($x) => $x->whereNull('stato')->orWhereRaw("TRIM(stato) = ''"))
+            ->count();
+
+        // Quanti, fra quelli elencati adesso, sono senza stemma. Serve alla
+        // caccia agli stemmi mancanti, che si fa dalla stessa pagina.
+        $senzaStemma = (clone $base)
+            ->where(fn ($x) => $x->whereNull('logo')->orWhereRaw("TRIM(logo) = ''"))
+            ->count();
+
+        return view('club.index', compact(
+            'items', 'nazioni', 'stato', 'q', 'mostraId',
+            'senzaNazione', 'nSenzaNazione', 'senzaStemma'
+        ));
     }
 
     /** Scheda del singolo club. */

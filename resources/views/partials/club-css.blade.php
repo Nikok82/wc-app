@@ -51,6 +51,8 @@
                     text-align:center; }
     .club-modoid, .club-tutti { color:var(--muted); font-size:13px; margin:0 0 10px; }
     .club-tutti { margin:12px 0 0; text-align:center; }
+    .club-mancano { color:#a8541b; }
+    .club-tutti-ok { color:var(--accent); }
 
     /* ---- scheda club ---- */
     .club-head { display:flex; align-items:center; gap:16px; margin-bottom:6px; }

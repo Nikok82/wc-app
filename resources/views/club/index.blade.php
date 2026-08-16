@@ -20,8 +20,14 @@
             Nazione:
             <select name="stato" onchange="this.form.submit()">
                 <option value="">Tutte</option>
+                @if ($nSenzaNazione > 0)
+                    {{-- I club senza nazione non li pesca nessun filtro
+                         normale: senza questa voce resterebbero invisibili. --}}
+                    <option value="{{ \App\Http\Controllers\ClubController::SENZA_NAZIONE }}"
+                            @selected($senzaNazione)>— senza nazione ({{ $nSenzaNazione }}) —</option>
+                @endif
                 @foreach ($nazioni as $n)
-                    <option value="{{ $n }}" @selected($stato === $n)>{{ $n }}</option>
+                    <option value="{{ $n }}" @selected(! $senzaNazione && $stato === $n)>{{ $n }}</option>
                 @endforeach
             </select>
         </label>
@@ -67,8 +73,16 @@
     </div>
 
     @if ($stato !== '' && $items->total() > 0)
-        <p class="club-tutti">{{ $items->total() }}
-            {{ $items->total() === 1 ? 'club' : 'club' }} di {{ $stato }}, elencati tutti in una schermata.</p>
+        <p class="club-tutti">
+            {{ $items->total() }} club
+            {{ $senzaNazione ? 'senza nazione assegnata' : 'di '.$stato }}, elencati tutti in una schermata.
+            @if ($senzaStemma > 0)
+                <span class="club-mancano">Di questi, {{ $senzaStemma }}
+                    {{ $senzaStemma === 1 ? 'è senza stemma' : 'sono senza stemma' }}.</span>
+            @else
+                <span class="club-tutti-ok">Hanno tutti lo stemma.</span>
+            @endif
+        </p>
     @endif
 
     @if ($items->lastPage() > 1)
