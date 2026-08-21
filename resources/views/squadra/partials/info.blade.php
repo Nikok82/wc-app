@@ -43,14 +43,16 @@
            bandiera+nome+W non si spezza mai: e' un solo inline-flex con
            white-space:nowrap, quindi il ritorno a capo puo' avvenire solo
            in corrispondenza dei separatori. */
-        .lingue-riga{margin:2px 0 20px;line-height:2.1;}
-        .lingue-riga .lingua{display:inline-flex;align-items:center;gap:6px;
+        .lingue-riga{margin:2px 0 20px;line-height:1.3;
+            background:linear-gradient(142deg,#045e0352 0%,#57c78552 58%,#045e0352 100%);
+            border-radius:5px;padding:5px 15px;}
+        .lingue-riga .lingua{display:inline-flex;align-items:center;gap:3px;
             white-space:nowrap;vertical-align:middle;}
-        .lingue-riga .sep{color:var(--muted);margin:0 9px;vertical-align:middle;}
-        .lingue-riga img{width:22px;height:auto;border-radius:2px;flex:none;
+        .lingue-riga .sep{color:var(--muted);margin:0 4px;vertical-align:middle;}
+        .lingue-riga img{width:18px;height:auto;border-radius:2px;flex:none;
             box-shadow:0 1px 2px rgba(0,0,0,.25);}
-        .lingue-riga .nome{font-weight:600;font-size:13px;}
-        .lingue-riga .wbtn{flex:none;width:20px;height:20px;display:inline-flex;
+        .lingue-riga .nome{font-weight:600;font-size:10px;font-style:italic;margin-right:2px;}
+        .lingue-riga .wbtn{flex:none;width:16px;height:16px;display:inline-flex;
             align-items:center;justify-content:center;background:#fff;
             border:1px solid var(--line);border-radius:4px;font-weight:800;
             font-size:11px;font-family:Georgia,serif;color:var(--ink);
