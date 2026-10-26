@@ -53,4 +53,5 @@ Thumbs.db
 # Documenti di stato lavori
 /stato lavori/
 /stato lavori.md
-/report-*.md
+/report-*.md# Cartella di lavoro dello strumento stemmi (si svuota a ogni gruppo)
+/loghi_da_convertire/

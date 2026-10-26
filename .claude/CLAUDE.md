@@ -20,6 +20,14 @@ Plesk fa il deploy automatico di `main` tramite webhook GitHub: un push su `main
 - Database: oltre 34 tabelle con prefisso `awc_`. Frontend in sola lettura con ricerca; dati inseriti da Filament.
 - Composer: in produzione si usa solo `install` da `composer.lock`. Non lanciare mai `composer update`.
 
+## Database: regole tassative
+
+- Il database è PREESISTENTE. Non creare né modificare tabelle con le migration senza conferma
+  esplicita di Niko.
+- Per modifiche allo schema: prepara uno script SQL separato, spiegalo, e lascia che lo esegua Niko.
+- NON lanciare comandi distruttivi (`migrate:fresh`, `migrate:refresh`, `db:wipe`, `DROP`) per nessun motivo.
+- Usa sempre Eloquent o query preparate, mai SQL costruito concatenando stringhe.
+
 ## Verifiche prima di aprire una PR
 
 Nel cloud non c'è il database. Prima di ogni PR esegui:
@@ -65,6 +73,13 @@ Partite → Giocatori → Allenatori → Arbitri → Stadi → Club.
 
 - Schede operative: squadra, squadra-anno, torneo.
 - Schede dimostrative: partita, giocatore, allenatore, arbitro, stadio.
+
+## Stemmi dei club
+
+- File in `resources/images/clubs/C-<club_id>.png`, PNG 64×64 con sfondo trasparente.
+- Conversione con `tools/prepara_loghi_club.py` (istruzioni in `guida prepara-loghi-club.md`):
+  legge `loghi_da_convertire/` (cartella di lavoro, esclusa da git) e scrive PNG con lo stesso nome del file
+  d'origine. Formati accettati: PNG, JPG, WEBP, GIF, BMP, TIFF (non SVG).
 
 ## Archivio
 
